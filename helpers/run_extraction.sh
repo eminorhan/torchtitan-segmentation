@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Configuration ---
-TOTAL_PARTS=1000
+TOTAL_PARTS=100
 PYTHON_SCRIPT="create_slice_dataset_oo.py"
 
 echo "Starting sequential extraction for $TOTAL_PARTS parts..."

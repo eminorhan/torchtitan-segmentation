@@ -9,9 +9,10 @@ from PIL import Image
 from datasets import Dataset, Image as HFImage, Value, Features
 
 # ---------------- CONFIGURATION ------------------------------------------------------------
-NUM_PROC = 128                          # adjust based on available cpu cores
+NUM_PROC = 128                           # adjust based on available cpu cores
 WORKER_CACHE_SIZE = 1024 * 1024 * 1024  # keep a small cache per worker to prevent I/O thrashing
-WRITER_BATCH_SIZE = 100                 # number of rows per write op for the .map() cache file writer
+WRITER_BATCH_SIZE = 10                 # number of rows per write op for the .map() cache file writer
+MAX_DIM_SIZE = 8000                    # Maximum size of any dimension before chunking
 # -------------------------------------------------------------------------------------------
 
 # Global cache dictionary specifically for the isolated worker processes
@@ -48,6 +49,8 @@ def process_slice_worker(example):
     s0_path = example['s0_path']
     axis = example['axis']
     slice_idx = example['slice']
+    r_start, r_end = example['r_start'], example['r_end']
+    c_start, c_end = example['c_start'], example['c_end']
 
     if WORKER_CACHE.get("current_zarr") != zarr_path:
         WORKER_CACHE.clear()  
@@ -59,12 +62,13 @@ def process_slice_worker(example):
     zarr_root = WORKER_CACHE["root"]
     current_array = zarr_root[s0_path]
     
+    # Read only the requested bounding box directly from Zarr
     if axis == 'z': 
-        slice_2d = current_array[slice_idx, :, :]
+        slice_2d = current_array[slice_idx, r_start:r_end, c_start:c_end]
     elif axis == 'y': 
-        slice_2d = current_array[:, slice_idx, :]
+        slice_2d = current_array[r_start:r_end, slice_idx, c_start:c_end]
     elif axis == 'x': 
-        slice_2d = current_array[:, :, slice_idx]
+        slice_2d = current_array[r_start:r_end, c_start:c_end, slice_idx]
     else:
         raise ValueError(f"Unknown axis: {axis}")
 
@@ -73,13 +77,13 @@ def process_slice_worker(example):
 
     return {"image": Image.fromarray(slice_2d_uint8)}
 
-def build_task_list(root_dir):
-    """Scans the dataset metadata instantly and builds a master list of all slices."""
+def build_task_list(root_dir, stride=1):
+    """Scans the dataset metadata instantly and builds a master list of all slices and chunks."""
     zarr_paths = sorted(glob(os.path.join(root_dir, '*/*.zarr')))
     all_tasks = []
     axis_names = {0: 'z', 1: 'y', 2: 'x'}
 
-    print("Scanning Zarr volumes and building the task queue...")
+    print(f"Scanning Zarr volumes and building the task queue (stride={stride})...")
     for zarr_path in zarr_paths:
         dataset_name = os.path.basename(zarr_path).replace('.zarr', '')
 
@@ -99,21 +103,51 @@ def build_task_list(root_dir):
         if not em_subfolders: continue
 
         best_em = sorted(em_subfolders, key=get_em_subfolder_sort_key)[0]
-        s0_path = f"{em_path}/{best_em}/s1"
+        s0_path = f"{em_path}/{best_em}/s0"
         if s0_path not in zarr_root: continue
 
         volume_identifier = f"{dataset_name}/{earliest_recon}/{best_em}"
         shape = zarr_root[s0_path].shape
         
         for axis in [0, 1, 2]:
-            for slice_idx in range(shape[axis]):
-                all_tasks.append({
-                    "zarr_path": zarr_path,
-                    "s0_path": s0_path,
-                    "crop_name": volume_identifier,
-                    "axis": axis_names[axis],
-                    "slice": slice_idx
-                })
+            # Determine the 2D dimensions based on the slicing axis
+            if axis == 0:   # Z-axis
+                h, w = shape[1], shape[2]
+            elif axis == 1: # Y-axis
+                h, w = shape[0], shape[2]
+            elif axis == 2: # X-axis
+                h, w = shape[0], shape[1]
+
+            # Calculate chunks required to stay under the MAX_DIM_SIZE
+            h_chunks = max(1, math.ceil(h / MAX_DIM_SIZE))
+            w_chunks = max(1, math.ceil(w / MAX_DIM_SIZE))
+            
+            # Calculate the step sizes for this specific slice to split equally
+            h_step = math.ceil(h / h_chunks)
+            w_step = math.ceil(w / w_chunks)
+
+            # Apply the stride when iterating over the slices
+            for slice_idx in range(0, shape[axis], stride):
+                # Create a task for each grid section of the slice
+                for i in range(h_chunks):
+                    for j in range(w_chunks):
+                        r_start = i * h_step
+                        r_end = min((i + 1) * h_step, h)
+                        c_start = j * w_step
+                        c_end = min((j + 1) * w_step, w)
+
+                        all_tasks.append({
+                            "zarr_path": zarr_path,
+                            "s0_path": s0_path,
+                            "crop_name": volume_identifier,
+                            "axis": axis_names[axis],
+                            "slice": slice_idx,
+                            "part_id": f"{i}_{j}",  # unique grid ID
+                            "r_start": r_start,
+                            "r_end": r_end,
+                            "c_start": c_start,
+                            "c_end": c_end
+                        })
                 
     return all_tasks
 
@@ -122,42 +156,53 @@ def main():
     parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data", help="Root directory for zarr volumes")
     parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo", help="Local path to save dataset parts")
 
-    # Chunking arguments
+    # Chunking and sampling arguments
     parser.add_argument("--total_parts", type=int, default=100, help="Total number of chunks to divide the dataset into")
     parser.add_argument("--part_index", type=int, default=0, help="The 0-indexed part to process (e.g., 0 to 999)")
+    parser.add_argument("--slice_stride", type=int, default=10, help="Take every K-th slice along each axis (default 1 means all slices)")
     
     args = parser.parse_args()
     print(f"Args: {args}")
 
-    tasks = build_task_list(args.root_directory)
+    tasks = build_task_list(args.root_directory, stride=args.slice_stride)
     total_tasks = len(tasks)
     
+    if total_tasks == 0:
+        print("No tasks generated. Check your directory or stride settings.")
+        return
+
     # Chunking
     chunk_size = math.ceil(total_tasks / args.total_parts)
     start_idx = args.part_index * chunk_size
     end_idx = min(start_idx + chunk_size, total_tasks)
     
     chunked_tasks = tasks[start_idx:end_idx]
-    print(f"Total slices across all volumes: {total_tasks}")
-    print(f"Processing Part {args.part_index + 1} of {args.total_parts}")
-    print(f"Extracting slices {start_idx} to {end_idx - 1} ({len(chunked_tasks)} tasks)")
+    print(f"Total parts across all volumes (with stride {args.slice_stride}): {total_tasks}")
+    print(f"Processing Array Job Part {args.part_index + 1} of {args.total_parts}")
+    print(f"Extracting sub-tasks {start_idx} to {end_idx - 1} ({len(chunked_tasks)} tasks)")
+
+    if len(chunked_tasks) == 0:
+        print(f"No tasks assigned to Part {args.part_index}. Exiting.")
+        return
 
     # Pass only the chunked list
     dataset = Dataset.from_list(chunked_tasks)
 
-    # Define the final schema we want (this enforces the column order and dtypes)
+    # Updated schema with the new part_id column
     final_features = Features({
         "image": HFImage(),
         "crop_name": Value("string"),
         "axis": Value("string"),
-        "slice": Value("int32")
+        "slice": Value("int32"),
+        "part_id": Value("string")
     })
 
     print(f"Igniting parallel extraction with {NUM_PROC} workers...")
     dataset = dataset.map(
         process_slice_worker,
         num_proc=NUM_PROC,
-        remove_columns=["zarr_path", "s0_path"], 
+        # Remove the temporary bounding box columns as we don't need them saved
+        remove_columns=["zarr_path", "s0_path", "r_start", "r_end", "c_start", "c_end"], 
         features=final_features,
         desc=f"Processing Part {args.part_index}",
         writer_batch_size=WRITER_BATCH_SIZE
