@@ -12,7 +12,7 @@ from datasets import Dataset, Image as HFImage, Value, Features
 NUM_PROC = 128                           # adjust based on available cpu cores
 WORKER_CACHE_SIZE = 1024 * 1024 * 1024  # keep a small cache per worker to prevent I/O thrashing
 WRITER_BATCH_SIZE = 10                 # number of rows per write op for the .map() cache file writer
-MAX_DIM_SIZE = 8000                    # Maximum size of any dimension before chunking
+MAX_DIM_SIZE = 4096                    # Maximum size of any dimension before chunking
 # -------------------------------------------------------------------------------------------
 
 # Global cache dictionary specifically for the isolated worker processes
