@@ -6,7 +6,7 @@ from datasets import load_from_disk, concatenate_datasets
 def main():
     parser = argparse.ArgumentParser(description="Merge and push dataset to Hugging Face Hub.")
     parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo", help="Directory containing part_* folders")
-    parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d" help="HF repo id")
+    parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d", help="HF repo id")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for shuffling")    
     args = parser.parse_args()
 

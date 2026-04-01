@@ -159,7 +159,7 @@ def main():
     # Chunking and sampling arguments
     parser.add_argument("--total_parts", type=int, default=100, help="Total number of chunks to divide the dataset into")
     parser.add_argument("--part_index", type=int, default=0, help="The 0-indexed part to process (e.g., 0 to 999)")
-    parser.add_argument("--slice_stride", type=int, default=10, help="Take every K-th slice along each axis (default 1 means all slices)")
+    parser.add_argument("--slice_stride", type=int, default=18, help="Take every K-th slice along each axis (1 means all slices)")
     
     args = parser.parse_args()
     print(f"Args: {args}")
