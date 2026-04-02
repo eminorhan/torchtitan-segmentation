@@ -13,7 +13,8 @@ core
 data
 out
 
-# temp files
+# files
+*.parquet
 *.out
 *.log
 error.json
