@@ -10,9 +10,10 @@ from datasets import Dataset, Image as HFImage, Value, Features
 
 # ---------------- CONFIGURATION ------------------------------------------------------------
 NUM_PROC = 128                           # adjust based on available cpu cores
-WORKER_CACHE_SIZE = 1024 * 1024 * 1024  # keep a small cache per worker to prevent I/O thrashing
 WRITER_BATCH_SIZE = 10                 # number of rows per write op for the .map() cache file writer
-MAX_DIM_SIZE = 4096                    # Maximum size of any dimension before chunking
+MAX_DIM_SIZE = 2048                    # Maximum size of any dimension before chunking
+LOWER_PERCENTILE = 0.1                 # Lower percentile for intensity normalization (e.g., 1.0 or 0.1)
+UPPER_PERCENTILE = 99.9                # Upper percentile for intensity normalization (e.g., 99.0 or 99.9)
 # -------------------------------------------------------------------------------------------
 
 # Global cache dictionary specifically for the isolated worker processes
@@ -32,50 +33,90 @@ def get_em_subfolder_sort_key(folder_name):
 def normalize_to_uint8(slice_2d):
     """Safely casts heterogenous EM arrays to standard 8-bit grayscale."""
     if slice_2d.dtype == np.uint8:
+        if slice_2d.min() == slice_2d.max():
+            return None  # Slice is completely uniform, return None to drop it
         return slice_2d
 
     slice_float = slice_2d.astype(np.float32)
-    p_low, p_high = np.percentile(slice_float, (1, 99))
+    p_low, p_high = np.percentile(slice_float, (LOWER_PERCENTILE, UPPER_PERCENTILE))
 
     if p_high - p_low == 0:
-        return np.zeros_like(slice_2d, dtype=np.uint8)
+        # Fallback to absolute min/max if 1st and 99th percentiles are identical
+        # (e.g., when a slice is >98% background but has small non-zero features)
+        p_low, p_high = slice_float.min(), slice_float.max()
+        if p_high - p_low == 0:
+            return None  # Slice is completely uniform, return None to drop it
 
     normalized = np.clip((slice_float - p_low) / (p_high - p_low), 0, 1)
     return (normalized * 255.0).astype(np.uint8)
 
-def process_slice_worker(example):
-    """Worker function executed independently by each CPU core."""
-    zarr_path = example['zarr_path']
-    s0_path = example['s0_path']
-    axis = example['axis']
-    slice_idx = example['slice']
-    r_start, r_end = example['r_start'], example['r_end']
-    c_start, c_end = example['c_start'], example['c_end']
-
-    if WORKER_CACHE.get("current_zarr") != zarr_path:
-        WORKER_CACHE.clear()  
-        store = zarr.DirectoryStore(zarr_path)
-        cache = zarr.LRUStoreCache(store, max_size=WORKER_CACHE_SIZE) 
-        WORKER_CACHE["root"] = zarr.open(store=cache, mode='r')
-        WORKER_CACHE["current_zarr"] = zarr_path
-        
-    zarr_root = WORKER_CACHE["root"]
-    current_array = zarr_root[s0_path]
+def process_slice_batch(batch):
+    """Worker function executed independently by each CPU core, processing batches of slices."""
+    out = {
+        "image": [],
+        "crop_name": [],
+        "axis": [],
+        "slice": [],
+        "part_id": []
+    }
     
-    # Read only the requested bounding box directly from Zarr
-    if axis == 'z': 
-        slice_2d = current_array[slice_idx, r_start:r_end, c_start:c_end]
-    elif axis == 'y': 
-        slice_2d = current_array[r_start:r_end, slice_idx, c_start:c_end]
-    elif axis == 'x': 
-        slice_2d = current_array[r_start:r_end, c_start:c_end, slice_idx]
-    else:
-        raise ValueError(f"Unknown axis: {axis}")
+    for i in range(len(batch['zarr_path'])):
+        zarr_path = batch['zarr_path'][i]
+        s0_path = batch['s0_path'][i]
+        axis = batch['axis'][i]
+        slice_idx = batch['slice'][i]
+        r_start = batch['r_start'][i]
+        r_end = batch['r_end'][i]
+        c_start = batch['c_start'][i]
+        c_end = batch['c_end'][i]
+        crop_name = batch['crop_name'][i]
+        part_id = batch['part_id'][i]
 
-    slice_2d = np.array(slice_2d)
-    slice_2d_uint8 = normalize_to_uint8(slice_2d)
+        if WORKER_CACHE.get("current_zarr") != zarr_path:
+            WORKER_CACHE.clear()  
+            WORKER_CACHE["root"] = zarr.open(zarr_path, mode='r')
+            WORKER_CACHE["current_zarr"] = zarr_path
+            
+        zarr_root = WORKER_CACHE["root"]
+        current_array = zarr_root[s0_path]
+        
+        # Read only the requested bounding box directly from Zarr
+        if axis == 'z': 
+            slice_2d = current_array[slice_idx, r_start:r_end, c_start:c_end]
+        elif axis == 'y': 
+            slice_2d = current_array[r_start:r_end, slice_idx, c_start:c_end]
+        elif axis == 'x': 
+            slice_2d = current_array[r_start:r_end, c_start:c_end, slice_idx]
+        else:
+            raise ValueError(f"Unknown axis: {axis}")
 
-    return {"image": Image.fromarray(slice_2d_uint8)}
+        slice_2d = np.array(slice_2d)
+
+        # Find bounding box of non-zero regions
+        rows = np.any(slice_2d != 0, axis=1)
+        cols = np.any(slice_2d != 0, axis=0)
+        
+        if not np.any(rows):
+            continue  # Skip completely blank slices
+            
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        
+        # Crop down to bounding box
+        slice_2d = slice_2d[rmin:rmax+1, cmin:cmax+1]
+        
+        slice_2d_uint8 = normalize_to_uint8(slice_2d)
+
+        if slice_2d_uint8 is None:
+            continue  # Skip uniform/featureless slices entirely
+
+        out["image"].append(Image.fromarray(slice_2d_uint8))
+        out["crop_name"].append(crop_name)
+        out["axis"].append(axis)
+        out["slice"].append(slice_idx)
+        out["part_id"].append(part_id)
+
+    return out
 
 def build_task_list(root_dir, stride=1):
     """Scans the dataset metadata instantly and builds a master list of all slices and chunks."""
@@ -199,10 +240,11 @@ def main():
 
     print(f"Igniting parallel extraction with {NUM_PROC} workers...")
     dataset = dataset.map(
-        process_slice_worker,
+        process_slice_batch,
+        batched=True,
+        batch_size=10,
         num_proc=NUM_PROC,
-        # Remove the temporary bounding box columns as we don't need them saved
-        remove_columns=["zarr_path", "s0_path", "r_start", "r_end", "c_start", "c_end"], 
+        remove_columns=dataset.column_names, 
         features=final_features,
         desc=f"Processing Part {args.part_index}",
         writer_batch_size=WRITER_BATCH_SIZE
