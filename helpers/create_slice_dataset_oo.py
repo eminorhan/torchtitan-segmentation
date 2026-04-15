@@ -9,7 +9,7 @@ from PIL import Image
 from datasets import Dataset, Image as HFImage, Value, Features
 
 # ---------------- CONFIGURATION ------------------------------------------------------------
-NUM_PROC = 128                           # adjust based on available cpu cores
+NUM_PROC = 128                         # adjust based on available cpu cores
 WRITER_BATCH_SIZE = 10                 # number of rows per write op for the .map() cache file writer
 MAX_DIM_SIZE = 2048                    # Maximum size of any dimension before chunking
 LOWER_PERCENTILE = 0.1                 # Lower percentile for intensity normalization (e.g., 1.0 or 0.1)
@@ -54,7 +54,7 @@ def process_slice_batch(batch):
     """Worker function executed independently by each CPU core, processing batches of slices."""
     out = {
         "image": [],
-        "crop_name": [],
+        "volume_name": [],
         "axis": [],
         "slice": [],
         "part_id": []
@@ -69,7 +69,7 @@ def process_slice_batch(batch):
         r_end = batch['r_end'][i]
         c_start = batch['c_start'][i]
         c_end = batch['c_end'][i]
-        crop_name = batch['crop_name'][i]
+        volume_name = batch['volume_name'][i]
         part_id = batch['part_id'][i]
 
         if WORKER_CACHE.get("current_zarr") != zarr_path:
@@ -111,7 +111,7 @@ def process_slice_batch(batch):
             continue  # Skip uniform/featureless slices entirely
 
         out["image"].append(Image.fromarray(slice_2d_uint8))
-        out["crop_name"].append(crop_name)
+        out["volume_name"].append(volume_name)
         out["axis"].append(axis)
         out["slice"].append(slice_idx)
         out["part_id"].append(part_id)
@@ -180,7 +180,7 @@ def build_task_list(root_dir, stride=1):
                         all_tasks.append({
                             "zarr_path": zarr_path,
                             "s0_path": s0_path,
-                            "crop_name": volume_identifier,
+                            "volume_name": dataset_name,
                             "axis": axis_names[axis],
                             "slice": slice_idx,
                             "part_id": f"{i}_{j}",  # unique grid ID
@@ -195,12 +195,12 @@ def build_task_list(root_dir, stride=1):
 def main():
     parser = argparse.ArgumentParser(description="Process zarr dataset in chunks.")
     parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data", help="Root directory for zarr volumes")
-    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo", help="Local path to save dataset parts")
+    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered", help="Local path to save dataset parts")
 
     # Chunking and sampling arguments
     parser.add_argument("--total_parts", type=int, default=100, help="Total number of chunks to divide the dataset into")
     parser.add_argument("--part_index", type=int, default=0, help="The 0-indexed part to process (e.g., 0 to 999)")
-    parser.add_argument("--slice_stride", type=int, default=18, help="Take every K-th slice along each axis (1 means all slices)")
+    parser.add_argument("--slice_stride", type=int, default=16, help="Take every K-th slice along each axis (1 means all slices)")
     
     args = parser.parse_args()
     print(f"Args: {args}")
@@ -232,7 +232,7 @@ def main():
     # Updated schema with the new part_id column
     final_features = Features({
         "image": HFImage(),
-        "crop_name": Value("string"),
+        "volume_name": Value("string"),
         "axis": Value("string"),
         "slice": Value("int32"),
         "part_id": Value("string")
