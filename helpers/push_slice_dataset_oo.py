@@ -7,11 +7,14 @@ from huggingface_hub import HfApi
 
 def main():
     parser = argparse.ArgumentParser(description="Merge and push dataset to Hugging Face Hub.")
-    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo", help="Directory containing part_* folders")
+    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered", help="Directory containing part_* folders")
     parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d", help="HF repo id")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for shuffling")    
-    # Added for resumable uploads:
-    parser.add_argument("--num_shards", type=int, default=5000, help="Target ~1GB per shard (e.g., 6000 for a ~6TB dataset)")
+    parser.add_argument("--num_shards", type=int, default=500, help="Target ~1GB per shard (e.g., 6000 for a ~6TB dataset)")
+    
+    # Flag to clear out the old dataset before uploading
+    parser.add_argument("--overwrite", action="store_true", help="Delete the existing 'data' directory on the Hub to force a clean update.")
+    
     args = parser.parse_args()
 
     # Initialize Hugging Face API
@@ -21,8 +24,24 @@ def main():
     print(f"Ensuring repository '{args.repo_id}' exists...")
     api.create_repo(repo_id=args.repo_id, repo_type="dataset", exist_ok=True)
 
+    # Delete old data if updating the dataset
+    if args.overwrite:
+        print("\n⚠️ OVERWRITE FLAG DETECTED: Deleting old 'data' directory on the Hub...")
+        try:
+            # This creates a single commit that drops the entire data/ folder
+            api.delete_folder(
+                path_in_repo="data", 
+                repo_id=args.repo_id, 
+                repo_type="dataset",
+                commit_message="Clear old dataset shards for update"
+            )
+            print("✅ Successfully deleted old data. Starting with a clean slate.")
+        except Exception as e:
+            # If the folder doesn't exist yet, it will throw an error, which is fine to ignore
+            print(f"Note: Could not delete 'data' folder (it might not exist yet): {e}")
+
     # Get existing files on the Hub to enable instant resuming
-    print("Checking Hub for existing files to resume...")
+    print("\nChecking Hub for existing files to resume...")
     try:
         existing_files = api.list_repo_files(repo_id=args.repo_id, repo_type="dataset")
         existing_set = set(existing_files)
@@ -32,7 +51,6 @@ def main():
         existing_set = set()
 
     # Find all part directories and sort them numerically
-    # (Sorting "part_2" before "part_10" instead of alphabetically)
     part_dirs = glob(os.path.join(args.local_save_dir, "part_*"))
     part_dirs = sorted(part_dirs, key=lambda x: int(x.split('_')[-1]))
     
@@ -60,33 +78,26 @@ def main():
     full_dataset = full_dataset.shuffle(seed=args.seed)
     print("Shuffle complete!")
 
-    # ---------------------------------------------------------
-    # BULLETPROOF UPLOAD LOGIC REPLACING .push_to_hub()
-    # ---------------------------------------------------------
+    # Robust upload logic
     num_shards = args.num_shards
     print(f"\nInitiating resumable upload across {num_shards} shards.")
 
     for i in range(num_shards):
-        # Hugging Face standard data directory structure
         file_name = f"data/train-{i:05d}-of-{num_shards:05d}.parquet"
 
-        # Check if we can skip this file (it's already on the Hub)
         if file_name in existing_set:
             print(f"✅ Shard {i}/{num_shards} already exists. Skipping.")
             continue
 
         print(f"⏳ Processing Shard {i}/{num_shards}...")
 
-        # Extract just this shard
         shard = full_dataset.shard(num_shards=num_shards, index=i, contiguous=True)
         temp_file = f"temp_upload_shard_{i}.parquet"
 
-        # Export to a temporary Parquet file locally
         shard.to_parquet(temp_file)
 
-        # Upload with robust retry logic
         success = False
-        for attempt in range(10): # Try 10 times per shard before giving up
+        for attempt in range(10):
             try:
                 print(f"   ⬆️ Uploading {file_name} (Attempt {attempt + 1}/10)...")
                 api.upload_file(
@@ -101,7 +112,6 @@ def main():
                 print(f"   ❌ Network error: {e}. Retrying in 15 seconds...")
                 time.sleep(15)
 
-        # Clean up the temp file to save disk space
         if os.path.exists(temp_file):
             os.remove(temp_file)
 
