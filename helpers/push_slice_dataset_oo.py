@@ -7,10 +7,10 @@ from huggingface_hub import HfApi
 
 def main():
     parser = argparse.ArgumentParser(description="Merge and push dataset to Hugging Face Hub.")
-    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered", help="Directory containing part_* folders")
+    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered_more", help="Directory containing part_* folders")
     parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d", help="HF repo id")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed for shuffling")    
-    parser.add_argument("--num_shards", type=int, default=500, help="Target ~1GB per shard (e.g., 6000 for a ~6TB dataset)")
+    parser.add_argument("--seed", type=int, default=1, help="Random seed for shuffling")    
+    parser.add_argument("--num_shards", type=int, default=5000, help="Target ~1GB per shard (e.g., 6000 for a ~6TB dataset)")
     
     # Flag to clear out the old dataset before uploading
     parser.add_argument("--overwrite", action="store_true", help="Delete the existing 'data' directory on the Hub to force a clean update.")
@@ -72,11 +72,11 @@ def main():
     full_dataset = concatenate_datasets(loaded_datasets)
     print(f"Concatenation complete! Total slices/chunks: {len(full_dataset)}")
 
-    # Shuffle the entire concatenated dataset
-    print(f"\nShuffling the complete dataset globally (seed={args.seed})...")
-    print("Note: For massive datasets, this generates an index mapping map and might take a minute or two.")
-    full_dataset = full_dataset.shuffle(seed=args.seed)
-    print("Shuffle complete!")
+    # # Shuffle the entire concatenated dataset
+    # print(f"\nShuffling the complete dataset globally (seed={args.seed})...")
+    # print("Note: For massive datasets, this generates an index mapping map and might take a minute or two.")
+    # full_dataset = full_dataset.shuffle(seed=args.seed)
+    # print("Shuffle complete!")
 
     # Robust upload logic
     num_shards = args.num_shards

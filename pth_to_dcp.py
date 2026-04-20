@@ -51,7 +51,7 @@ if __name__ == "__main__":
             source="local", 
             weights=str(weights_path), 
             pretrained=True, 
-            use_fa3=True
+            use_fa4=True
         )
         
         model = build_segmentation_decoder(

@@ -31,23 +31,37 @@ def get_em_subfolder_sort_key(folder_name):
     return 4
 
 def normalize_to_uint8(slice_2d):
-    """Safely casts heterogenous EM arrays to standard 8-bit grayscale."""
+    """Safely casts heterogenous EM arrays to standard 8-bit grayscale with a black background."""
+    
+    # 1. Drop completely uniform slices early
+    if slice_2d.min() == slice_2d.max():
+        return None
+        
+    # 2. Bypass for uint8
     if slice_2d.dtype == np.uint8:
-        if slice_2d.min() == slice_2d.max():
-            return None  # Slice is completely uniform, return None to drop it
         return slice_2d
 
+    # 3. Convert to float for safe math
     slice_float = slice_2d.astype(np.float32)
+    
+    # 5. Calculate percentiles for contrast stretching
     p_low, p_high = np.percentile(slice_float, (LOWER_PERCENTILE, UPPER_PERCENTILE))
 
+    # 6. Fallback if percentiles are identical
     if p_high - p_low == 0:
-        # Fallback to absolute min/max if 1st and 99th percentiles are identical
-        # (e.g., when a slice is >98% background but has small non-zero features)
         p_low, p_high = slice_float.min(), slice_float.max()
         if p_high - p_low == 0:
-            return None  # Slice is completely uniform, return None to drop it
+            return None
 
+    # 7. Normalize to 0.0 - 1.0 range
     normalized = np.clip((slice_float - p_low) / (p_high - p_low), 0, 1)
+    
+    # 8. INVERT: Map the bright transmissive background (1.0) to black (0.0) 
+    # TODO: not sure about when exactly this is needed
+    if slice_2d.dtype == np.int16:
+        normalized = 1.0 - normalized
+    
+    # 9. Scale to 255 and cast back to uint8
     return (normalized * 255.0).astype(np.uint8)
 
 def process_slice_batch(batch):
@@ -92,23 +106,47 @@ def process_slice_batch(batch):
 
         slice_2d = np.array(slice_2d)
 
-        # Find bounding box of non-zero regions
-        rows = np.any(slice_2d != 0, axis=1)
-        cols = np.any(slice_2d != 0, axis=0)
+        # --- CROPPING LOGIC ---        
+        # Foreground is anything that isn't black AND isn't the white padding
+        bg_white = slice_2d.max()
+        is_foreground = (slice_2d != 0) & (slice_2d != bg_white)
+
+        # Find bounding box of non-background regions
+        rows = np.any(is_foreground, axis=1)
+        cols = np.any(is_foreground, axis=0)
         
         if not np.any(rows):
-            continue  # Skip completely blank slices
+            continue  # Skip completely blank or uniformly padded slices
             
         rmin, rmax = np.where(rows)[0][[0, -1]]
         cmin, cmax = np.where(cols)[0][[0, -1]]
         
         # Crop down to bounding box
         slice_2d = slice_2d[rmin:rmax+1, cmin:cmax+1]
-        
+        # ------------------------------------
+
         slice_2d_uint8 = normalize_to_uint8(slice_2d)
 
         if slice_2d_uint8 is None:
             continue  # Skip uniform/featureless slices entirely
+
+        # --- CROPPING LOGIC ---        
+        # Foreground is anything that isn't black AND isn't the white padding
+        is_foreground = (slice_2d_uint8 != 0) & (slice_2d_uint8 != 255)
+
+        # Find bounding box of non-background regions
+        rows = np.any(is_foreground, axis=1)
+        cols = np.any(is_foreground, axis=0)
+        
+        if not np.any(rows):
+            continue  # Skip completely blank or uniformly padded slices
+            
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        
+        # Crop down to bounding box
+        slice_2d_uint8 = slice_2d_uint8[rmin:rmax+1, cmin:cmax+1]
+        # ------------------------------------
 
         out["image"].append(Image.fromarray(slice_2d_uint8))
         out["volume_name"].append(volume_name)
@@ -195,12 +233,12 @@ def build_task_list(root_dir, stride=1):
 def main():
     parser = argparse.ArgumentParser(description="Process zarr dataset in chunks.")
     parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data", help="Root directory for zarr volumes")
-    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered", help="Local path to save dataset parts")
+    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered_more", help="Local path to save dataset parts")
 
     # Chunking and sampling arguments
     parser.add_argument("--total_parts", type=int, default=100, help="Total number of chunks to divide the dataset into")
     parser.add_argument("--part_index", type=int, default=0, help="The 0-indexed part to process (e.g., 0 to 999)")
-    parser.add_argument("--slice_stride", type=int, default=16, help="Take every K-th slice along each axis (1 means all slices)")
+    parser.add_argument("--slice_stride", type=int, default=15, help="Take every K-th slice along each axis (1 means all slices)")
     
     args = parser.parse_args()
     print(f"Args: {args}")
