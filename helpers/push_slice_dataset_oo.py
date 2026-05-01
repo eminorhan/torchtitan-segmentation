@@ -10,7 +10,7 @@ def main():
     parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_filtered_more", help="Directory containing part_* folders")
     parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d", help="HF repo id")
     parser.add_argument("--seed", type=int, default=1, help="Random seed for shuffling")    
-    parser.add_argument("--num_shards", type=int, default=5000, help="Target ~1GB per shard (e.g., 6000 for a ~6TB dataset)")
+    parser.add_argument("--num_shards", type=int, default=1000, help="Number of shards (e.g., 6000 for a ~6TB dataset)")
     
     # Flag to clear out the old dataset before uploading
     parser.add_argument("--overwrite", action="store_true", help="Delete the existing 'data' directory on the Hub to force a clean update.")
@@ -83,6 +83,9 @@ def main():
     print(f"\nInitiating resumable upload across {num_shards} shards.")
 
     for i in range(num_shards):
+
+        # time.sleep(16)  # wait 16 seconds between shards to respect API rate limits (128 requests / h)
+
         file_name = f"data/train-{i:05d}-of-{num_shards:05d}.parquet"
 
         if file_name in existing_set:

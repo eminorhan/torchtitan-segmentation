@@ -1,6 +1,7 @@
 import os
 import zarr
 import numpy as np
+import scipy.ndimage
 from glob import glob
 from PIL import Image
 from datasets import Dataset, Features, Image as HFImage, Value
@@ -109,6 +110,12 @@ def generate_2d_slices(root_dir):
                 if raw_crop_3d.size == 0:
                     continue
                 
+                label_vol = np.array(label_array)
+                if label_vol.shape != raw_crop_3d.shape:
+                    print(f"Reshaping label volume...")
+                    zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]
+                    label_vol = scipy.ndimage.zoom(label_vol, zoom_factor, order=0, prefilter=False)
+                
                 full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
                 # print(f"full crop name: {full_crop_name}")
                 
@@ -119,15 +126,19 @@ def generate_2d_slices(root_dir):
                     for slice_idx in range(num_slices):
                         if axis == 0:
                             slice_2d = raw_crop_3d[slice_idx, :, :]
+                            label_2d = label_vol[slice_idx, :, :]
                         elif axis == 1:
                             slice_2d = raw_crop_3d[:, slice_idx, :]
+                            label_2d = label_vol[:, slice_idx, :]
                         else:
                             slice_2d = raw_crop_3d[:, :, slice_idx]
+                            label_2d = label_vol[:, :, slice_idx]
 
                         # print(f"full crop name: {full_crop_name}, axis: {axis_names[axis]}, slice: {slice_idx}")
 
                         yield {
                             "image": Image.fromarray(slice_2d),
+                            "label": Image.fromarray(label_2d.astype(np.uint8)),
                             "crop_name": full_crop_name,
                             "axis": axis_names[axis],
                             "slice": slice_idx
@@ -140,6 +151,7 @@ def main():
     # Define the schema explicitly for Hugging Face
     features = Features({
         "image": HFImage(),
+        "label": HFImage(),
         "crop_name": Value("string"),
         "axis": Value("string"),
         "slice": Value("int32")
