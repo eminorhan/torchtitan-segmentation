@@ -1,7 +1,7 @@
 import os
 import time
 import argparse
-import datasets
+import concurrent.futures
 from glob import glob
 from datasets import load_from_disk, concatenate_datasets
 from huggingface_hub import HfApi
@@ -12,12 +12,13 @@ def main():
     parser.add_argument("--repo_id", type=str, default="eminorhan/openorganelle-2d", help="HF repo id")
     parser.add_argument("--seed", type=int, default=1, help="Random seed for shuffling")    
     parser.add_argument("--num_shards", type=int, default=1000, help="Number of shards")
+    parser.add_argument("--max_workers", type=int, default=64, help="Number of concurrent workers for uploading")
     
     # Flag to clear out the old dataset before uploading
     parser.add_argument("--overwrite", action="store_true", help="Delete the existing 'data' directory on the Hub to force a clean update.")
     
     args = parser.parse_args()
-    
+
     # Initialize Hugging Face API
     api = HfApi()
 
@@ -77,29 +78,24 @@ def main():
     print(f"\nShuffling the complete dataset globally (seed={args.seed})...")
     print("Note: For massive datasets, this generates an index mapping map and might take a minute or two.")
     full_dataset = full_dataset.shuffle(seed=args.seed)
-    print("Shuffle complete!")
-
+    
     # Robust upload logic
     num_shards = args.num_shards
-    print(f"\nInitiating resumable upload across {num_shards} shards.")
+    print(f"\nInitiating resumable upload across {num_shards} shards using {args.max_workers} workers.")
 
-    for i in range(num_shards):
-
+    def process_and_upload_shard(i):
         file_name = f"data/train-{i:05d}-of-{num_shards:05d}.parquet"
 
         if file_name in existing_set:
             print(f"✅ Shard {i}/{num_shards} already exists. Skipping.")
-            continue
+            return True
 
         print(f"⏳ Processing Shard {i}/{num_shards}...")
+
         shard = full_dataset.shard(num_shards=num_shards, index=i, contiguous=True)
         temp_file = f"temp_upload_shard_{i}.parquet"
 
-        print(f"⏳ Converting to parquet on disk...")
-        shard.to_parquet(
-            temp_file,
-            batch_size=100  # Stops dynamic size calculation & controls memory
-        )
+        shard.to_parquet(temp_file, batch_size=100)
 
         success = False
         for attempt in range(10):
@@ -114,15 +110,22 @@ def main():
                 success = True
                 break
             except Exception as e:
-                print(f"   ❌ Network error: {e}. Retrying in 15 seconds...")
+                print(f"   ❌ Network error on shard {i}: {e}. Retrying in 15 seconds...")
                 time.sleep(15)
 
         if os.path.exists(temp_file):
             os.remove(temp_file)
 
         if not success:
-            print(f"💥 FATAL: Failed to upload shard {i} after 10 attempts. Exiting.")
-            return
+            print(f"💥 FATAL: Failed to upload shard {i} after 10 attempts.")
+        return success
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        results = list(executor.map(process_and_upload_shard, range(num_shards)))
+
+    if not all(results):
+        print("\n💥 FATAL: One or more shards failed to upload. Exiting.")
+        return
 
     print("\n🎉 Upload complete! Your dataset is now live on the Hugging Face Hub.")
 
