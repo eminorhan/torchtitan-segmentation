@@ -10,9 +10,9 @@ from glob import glob
 from datasets import Dataset, Value, Features, Sequence
 
 # ---------------- CONFIGURATION ------------------------------------------------------------
-NUM_PROC = 16                          # Number of parallel processes
+NUM_PROC = 128                          # Number of parallel processes
 MAP_BATCH_SIZE = 1                     # Batch_size for map processing
-WRITER_BATCH_SIZE = 16                  # Number of rows per write op for the .map() cache file writer
+WRITER_BATCH_SIZE = 128                  # Number of rows per write op for the .map() cache file writer
 LOWER_PERCENTILE = 1.0                 # Lower percentile for intensity normalization
 UPPER_PERCENTILE = 99.0                # Upper percentile for intensity normalization
 VOLUMES_TO_BE_INVERTED = [
@@ -25,8 +25,8 @@ VOLUMES_TO_BE_INVERTED = [
 ]
 # -------------------------------------------------------------------------------------------
 
-# Global cache dictionary specifically for the isolated worker processes
-WORKER_CACHE = {}
+# # Global cache dictionary specifically for the isolated worker processes
+# WORKER_CACHE = {}
 
 def get_recon_sort_key(recon_name):
     match = re.search(r'recon-(\d+)', recon_name)
@@ -101,12 +101,14 @@ def process_volume_batch(batch):
         x_end = batch['x_end'][i]
         volume_name = batch['volume_name'][i]
 
-        if WORKER_CACHE.get("current_zarr") != zarr_path:
-            WORKER_CACHE.clear()  
-            WORKER_CACHE["root"] = zarr.open(zarr_path, mode='r')
-            WORKER_CACHE["current_zarr"] = zarr_path
+        # if WORKER_CACHE.get("current_zarr") != zarr_path:
+        #     WORKER_CACHE.clear()  
+        #     WORKER_CACHE["root"] = zarr.open(zarr_path, mode='r')
+        #     WORKER_CACHE["current_zarr"] = zarr_path
             
-        zarr_root = WORKER_CACHE["root"]
+        # zarr_root = WORKER_CACHE["root"]
+
+        zarr_root = zarr.open(zarr_path, mode='r')
         current_array = zarr_root[s0_path]
         
         # Read only the requested 3D bounding box directly from Zarr
@@ -171,7 +173,7 @@ def process_volume_batch(batch):
 
         # Force garbage collection
         gc.collect()
-        
+
     return out
 
 def build_task_list(root_dir, crop_size=512, stride=512):
