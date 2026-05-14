@@ -441,7 +441,9 @@ class ZarrValidationDataset2D(ZarrBaseDataset):
             # 3. Load Corresponding Raw Volume
             label_attrs = zarr_root[os.path.dirname(sample_info['label_path'])].attrs.asdict()
             label_scale, label_translation = self._parse_ome_ngff_metadata(label_attrs, os.path.basename(sample_info['label_path']))
-            if label_scale is None: label_scale, label_translation = [1.,1.,1.], [0.,0.,0.]
+            
+            if label_scale is None: 
+                label_scale, label_translation = [1.,1.,1.], [0.,0.,0.]
 
             raw_attrs = zarr_root[sample_info['raw_path_group']].attrs.asdict()
             best_raw_path, raw_scale, raw_translation = self._find_best_raw_scale(label_scale, raw_attrs)

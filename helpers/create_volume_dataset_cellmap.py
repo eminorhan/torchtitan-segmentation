@@ -2,32 +2,33 @@ import os
 import zarr
 import numpy as np
 import scipy.ndimage
+import argparse
 from glob import glob
-from PIL import Image
-from datasets import Dataset, Features, Image as HFImage, Value
+from datasets import Dataset, Features, Value, Sequence
 
 LOWER_PERCENTILE = 1.0
 UPPER_PERCENTILE = 99.0
+MAX_VOXELS = 2_000_000_000
 
-def normalize_to_uint8(slice_2d):
+def normalize_to_uint8(vol_3d):
     """Safely casts heterogenous EM arrays to standard 8-bit grayscale with a black background."""
     
-    # Drop completely uniform slices early
-    if slice_2d.min() == slice_2d.max():
+    # Drop completely uniform volumes early
+    if vol_3d.min() == vol_3d.max():
         return None
         
     # Convert to float for safe math
-    slice_float = slice_2d.astype(np.float32)
+    vol_float = vol_3d.astype(np.float32)
     
     # Identify background padding values dynamically
-    bg_black = slice_float.min()
-    bg_white = slice_float.max()
+    bg_black = vol_float.min()
+    bg_white = vol_float.max()
     
     # Create a 1D array of only the valid tissue pixels
-    valid_mask = (slice_float != bg_black) & (slice_float != bg_white) & (slice_float != 0.0)
-    valid_pixels = slice_float[valid_mask]
+    valid_mask = (vol_float != bg_black) & (vol_float != bg_white) & (vol_float != 0.0)
+    valid_pixels = vol_float[valid_mask]
     
-    # Fallback if the slice is entirely padding
+    # Fallback if the volume is entirely padding
     if valid_pixels.size == 0:
         return None
     
@@ -40,8 +41,8 @@ def normalize_to_uint8(slice_2d):
         if p_high - p_low == 0:
             return None
 
-    # Normalize the ENTIRE slice (including padding) to 0.0 - 1.0 range
-    normalized = np.clip((slice_float - p_low) / (p_high - p_low), 0, 1)
+    # Normalize the ENTIRE volume (including padding) to 0.0 - 1.0 range
+    normalized = np.clip((vol_float - p_low) / (p_high - p_low), 0, 1)
     
     # Scale to 255 and cast back to uint8
     return (normalized * 255.0).astype(np.uint8)
@@ -94,13 +95,11 @@ def find_best_raw_scale(target_label_scale, raw_attrs, default_scale='s0'):
         highest_res = min(available_scales, key=lambda s: sum(s['scale']))
         return highest_res['path'], highest_res['scale'], highest_res['translation']
 
-def generate_2d_slices(root_dir):
-    """Generator yielding unresized 2D slices across X, Y, Z axes for all crops."""
+def generate_3d_volumes(root_dir):
+    """Generator yielding unresized 3D volumes and their corresponding labels for all crops."""
     zarr_paths = glob(os.path.join(root_dir, '*/*.zarr'))
-    axis_names = {0: 'z', 1: 'y', 2: 'x'}
 
     for zarr_path in zarr_paths:
-
         # Extract e.g. 'jrc_mus-kidney' from '/.../jrc_mus-kidney.zarr'
         dataset_name = os.path.basename(zarr_path).replace('.zarr', '')
 
@@ -123,8 +122,11 @@ def generate_2d_slices(root_dir):
             for crop_name in groundtruth_group.keys():
                 if not crop_name.startswith('crop'): continue
                 
+                full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
+
                 label_path_str = os.path.join(labels_base_path_str, crop_name, 'all', 's0')
                 if label_path_str not in zarr_root:
+                    print(f"Skipping crop {full_crop_name} because label path not found.")
                     continue
 
                 # 1. Fetch Metadata
@@ -148,72 +150,89 @@ def generate_2d_slices(root_dir):
                 raw_crop_3d = np.array(raw_array_full[tuple(slices)]) # Load into memory at native size
                 
                 if raw_crop_3d.size == 0:
+                    print(f"Skipping crop {full_crop_name} because loaded raw volume is empty.")
                     continue
                 
                 label_vol = np.array(label_array)
-                if label_vol.shape != raw_crop_3d.shape:
-                    print(f"Reshaping label volume...")
-                    zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]
-                    label_vol = scipy.ndimage.zoom(label_vol, zoom_factor, order=0, prefilter=False)
+                target_shape = label_vol.shape
+
+                # Resize Raw
+                if raw_crop_3d.shape != target_shape:
+                    print(f"Reshaping raw volume for {crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
+                    raw_zoom = [t / s for t, s in zip(target_shape, raw_crop_3d.shape)]
+                    raw_crop_3d = scipy.ndimage.zoom(raw_crop_3d, raw_zoom, order=3, prefilter=False)
                 
-                full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
-                # print(f"full crop name: {full_crop_name}")
-                
-                # 3. Yield 2D slices along Z, Y, and X
-                for axis in [0, 1, 2]:
-                    num_slices = raw_crop_3d.shape[axis]
+                # 3. Normalize 3D volume
+                vol_3d_uint8 = normalize_to_uint8(raw_crop_3d)
+                if vol_3d_uint8 is None:
+                    print(f"Skipping crop {full_crop_name} because it is entirely uniform or just padding.")
+                    continue
+
+                print(f"Label volume shape: {vol_3d_uint8.shape}, Raw volume shape: {raw_crop_3d.shape}")
+
+                label_vol_uint8 = label_vol.astype(np.uint8)
+
+                total_voxels = vol_3d_uint8.size
+
+                if total_voxels > MAX_VOXELS:
+
+                    num_splits = int(np.ceil(total_voxels / MAX_VOXELS))
+                    sub_vols = np.array_split(vol_3d_uint8, num_splits, axis=0)
+                    sub_labels = np.array_split(label_vol_uint8, num_splits, axis=0)
                     
-                    for slice_idx in range(num_slices):
-                        if axis == 0:
-                            slice_2d = raw_crop_3d[slice_idx, :, :]
-                            label_2d = label_vol[slice_idx, :, :]
-                        elif axis == 1:
-                            slice_2d = raw_crop_3d[:, slice_idx, :]
-                            label_2d = label_vol[:, slice_idx, :]
-                        else:
-                            slice_2d = raw_crop_3d[:, :, slice_idx]
-                            label_2d = label_vol[:, :, slice_idx]
+                    print(f"Dividing {full_crop_name} into {num_splits} parts.")
 
-                        slice_2d_uint8 = normalize_to_uint8(slice_2d)
-                        if slice_2d_uint8 is None:
+                    for i, (sub_vol, sub_label) in enumerate(zip(sub_vols, sub_labels)):
+                        if sub_vol.size == 0:
                             continue
-
-                        # print(f"full crop name: {full_crop_name}, axis: {axis_names[axis]}, slice: {slice_idx}")
-
+                            
                         yield {
-                            "image": Image.fromarray(slice_2d_uint8),
-                            "label": Image.fromarray(label_2d.astype(np.uint8)),
-                            "crop_name": full_crop_name,
-                            "axis": axis_names[axis],
-                            "slice": slice_idx
+                            "volume": sub_vol.tobytes(),
+                            "label": sub_label.tobytes(),
+                            "crop_name": f"{full_crop_name}_part{i}",
+                            "shape": list(sub_vol.shape)
                         }
+                else:
+                    yield {
+                        "volume": vol_3d_uint8.tobytes(),
+                        "label": label_vol_uint8.tobytes(),
+                        "crop_name": full_crop_name,
+                        "shape": list(vol_3d_uint8.shape)
+                    }
 
 def main():
-    root_directory = "/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data"
-    repo_id = "eminorhan/cellmap-2d"
+    parser = argparse.ArgumentParser(description="Create 3D volume dataset for CellMap.")
+    parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data", help="Root directory for zarr volumes")
+    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_cellmap_3d", help="Local path to save dataset")
+
+    args = parser.parse_args()
 
     # Define the schema explicitly for Hugging Face
     features = Features({
-        "image": HFImage(),
-        "label": HFImage(),
+        "volume": Value("large_binary"),
+        "label": Value("large_binary"),
         "crop_name": Value("string"),
-        "axis": Value("string"),
-        "slice": Value("int32")
+        "shape": Sequence(Value("int32"))
     })
 
-    print("Initializing dataset generation. This may take a while depending on data size...")
+    print("Initializing 3D dataset generation. This may take a while depending on data size...")
     
     # Create the dataset using the generator
-    dataset = Dataset.from_generator(generate_2d_slices, gen_kwargs={"root_dir": root_directory}, features=features)
-    print(f"Dataset generated with {len(dataset)} slices.")
+    dataset = Dataset.from_generator(
+        generate_3d_volumes, 
+        gen_kwargs={"root_dir": args.root_directory}, 
+        features=features
+    )
+    print(f"Dataset generated with {len(dataset)} 3D crops.")
     
-    # Shuffle the dataset to evenly distribute large/small images across shards
+    # Shuffle the dataset
     dataset = dataset.shuffle(seed=42)
     print("Dataset shuffled!")
 
-    # Push the dataset directly to Hugging Face with shard size limit
-    dataset.push_to_hub(repo_id, max_shard_size="1GB")
-    print("Dataset uploaded to HF Hub!")
+    # Save the dataset directly to local disk with shard size limit
+    print(f"Saving dataset locally to {args.local_save_dir}...")
+    dataset.save_to_disk(args.local_save_dir, max_shard_size="2GB")
+    print("Dataset saved!")
 
 if __name__ == "__main__":
     main()

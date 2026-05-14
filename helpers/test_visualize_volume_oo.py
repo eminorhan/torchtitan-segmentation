@@ -69,7 +69,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test and visualize random volumes from saved arrow datasets.")
     parser.add_argument("--data_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_3d", help="Directory with part_* folders")
     parser.add_argument("--num_samples", type=int, default=9, help="Number of random samples to visualize")
-    parser.add_argument("--output_dir", type=str, default="test_visualizations", help="Output directory for GIFs")
+    parser.add_argument("--output_dir", type=str, default="test_3d_visualizations_oo", help="Output directory for GIFs")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
