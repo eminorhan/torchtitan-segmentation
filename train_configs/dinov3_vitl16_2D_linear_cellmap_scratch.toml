@@ -8,9 +8,8 @@ save_traces_folder = "profile_trace"
 profile_freq = 10
 
 [metrics]
-log_freq = 1000
+log_freq = 100
 eval_freq = 1000
-save_tb_folder = "tb"
 
 [model]
 backbone = "dinov3_vitl16"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3_vitl16"] + 3D versions
@@ -19,7 +18,7 @@ dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
 num_classes = 64 
 crop_size = [512, 512]
 val_crop_size = [512, 512, 512]
-use_fa3 = true  # use FlashAttention-3? NOTE: FA-3 requires bf16 mixed precision 
+use_fa4 = true  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision 
 
 [data]
 dataset_folder = "eminorhan/cellmap-2d"

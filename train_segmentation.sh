@@ -2,7 +2,7 @@
 
 #SBATCH --account=stf218-arch
 #SBATCH --partition=batch
-#SBATCH --nodes=2
+#SBATCH --nodes=10
 #SBATCH --cpus-per-task=288
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
@@ -33,7 +33,7 @@ export GPUS_PER_NODE=4
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 export MASTER_PORT=3442
 
-CONFIG_FILE=${CONFIG_FILE:-"./train_configs/dinov3_vitl16_2D_linear_cellmap_scratch.toml"}
+CONFIG_FILE=${CONFIG_FILE:-"./train_configs/dinov3_vitl16_3D_linear_scratch_bf16.toml"}
 
 srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_segmentation.py --job.config_file ${CONFIG_FILE}
 

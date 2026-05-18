@@ -222,22 +222,29 @@ def build_data_loader(
             if rank == 0:
                 print(f"Detected labeled dataset with crop metadata. Holding out 64 specific volume crops for validation.")
                 print(f"Total Unique Volumes: {len(unique_crops)} | Train: {len(unique_crops) - 64} | Val: 64")
-                print(f"Val crop names: {val_crop_names}")
+                print(f"Val crop names: {sorted(list(val_crop_names))}")
 
-            # Use HF batched filtering for extreme speed
+            # Ranks > 0 wait here until Rank 0 finishes filtering and caching to disk
+            if world_size > 1 and rank > 0:
+                dist.barrier()
+
             train_hf = dataset.filter(
                 lambda batch: [get_base_crop_name(n) not in val_crop_names for n in batch["crop_name"]],
                 batched=True,
-                num_proc=num_workers,
-                desc="Isolating Training Data"
+                num_proc=num_workers if rank == 0 else 1, # Only need multiple procs on Rank 0
+                desc="Isolating Training Data" if rank == 0 else None
             )
             
             val_hf = dataset.filter(
                 lambda batch: [get_base_crop_name(n) in val_crop_names for n in batch["crop_name"]],
                 batched=True,
-                num_proc=num_workers,
-                desc="Isolating Validation Data"
+                num_proc=num_workers if rank == 0 else 1,
+                desc="Isolating Validation Data" if rank == 0 else None
             )
+
+            # Rank 0 waits here until all other ranks have successfully loaded from the cache
+            if world_size > 1 and rank == 0:
+                dist.barrier()
         else:
             # Fallback just in case you ever load a generic labeled dataset without crop names
             if rank == 0:

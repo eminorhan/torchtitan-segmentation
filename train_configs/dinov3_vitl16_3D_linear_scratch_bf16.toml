@@ -1,7 +1,5 @@
-# torchtitan Config.toml
-
 [job]
-dump_folder = "./outputs/dinov3_vitl16_3D_linear_scratch_no_bf16"
+dump_folder = "./outputs/dinov3_vitl16_3D_linear_scratch_bf16"
 description = "segmentation training"
 
 [profiling]
@@ -11,21 +9,19 @@ profile_freq = 10
 
 [metrics]
 log_freq = 100
-eval_freq = 100
-enable_tensorboard = false
-save_tb_folder = "tb"
+eval_freq = 1000
 
 [model]
 backbone = "dinov3_vitl16_3D"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3_vitl16", "dinov3_vitb16"] + 3D versions
 head = "linear"  # ["linear", "m2f"]
 dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
 num_classes = 64 
-crop_size = [480, 480, 480]
-val_crop_size = [480, 480, 480]
-use_fa3 = false  # use FlashAttention-3? NOTE: FA-3 requires bf16 mixed precision 
+crop_size = [512, 512, 512]
+val_crop_size = [512, 512, 512]
+use_fa4 = true  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision 
 
 [data]
-dataset_folder = "/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data"
+dataset_folder = "/lustre/blizzard/stf218/scratch/emin/seg3d/data_cellmap_3d"
 augment = true  # whether to use "cheap" data augmentations
 
 [optimizer]
@@ -34,14 +30,13 @@ lr = 3e-4
 
 [training]
 batch_size = 1
-warmup_steps = 100  # lr scheduler warm up
+warmup_steps = 1000  # lr scheduler warm up
 max_norm = 1.0  # grad norm clipping
-steps = 2000  # number of training steps
+steps = 10000  # number of training steps
 data_parallel_replicate_degree = 1
 data_parallel_shard_degree = -1
 tensor_parallel_degree = 1
 compile = false
-mixed_precision_param = "float32"
 
 [experimental]
 pipeline_parallel_degree = 1
@@ -50,7 +45,7 @@ pipeline_parallel_degree = 1
 enable_checkpoint = true
 folder = "checkpoint"
 interval_type = "steps"
-interval = 100
+interval = 1000
 model_weights_only = false
 export_dtype = "bfloat16"
 async_mode = "disabled"  # ["disabled", "async", "async_with_pinned_mem"]
