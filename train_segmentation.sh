@@ -2,11 +2,11 @@
 
 #SBATCH --account=stf218-arch
 #SBATCH --partition=batch
-#SBATCH --nodes=8
+#SBATCH --nodes=2
 #SBATCH --cpus-per-task=288
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
-#SBATCH --time=6:00:00
+#SBATCH --time=1:00:00
 #SBATCH --job-name=train_segmentation
 #SBATCH --output=train_segmentation_%A_%a.out
 #SBATCH --array=0
@@ -15,13 +15,12 @@
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate
 
 # set misc env vars
-export LD_LIBRARY_PATH=/lustre/blizzard/stf218/scratch/emin/aws-ofi-nccl-1.17.2/lib:$LD_LIBRARY_PATH  # enable aws-ofi-nccl
+export LD_LIBRARY_PATH=/lustre/blizzard/stf218/scratch/emin/aws-ofi-nccl-1.19.0/lib:$LD_LIBRARY_PATH  # enable aws-ofi-nccl
 export NCCL_NET=ofi
 export FI_PROVIDER=cxi
 export LOGLEVEL=INFO
 export NCCL_SOCKET_IFNAME=hsn0,hsn1,hsn2,hsn3
 export GLOO_SOCKET_IFNAME=hsn0,hsn1,hsn2,hsn3
-export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 export HF_HOME="/lustre/blizzard/stf218/scratch/emin/huggingface"
 export HF_DATASETS_CACHE="/lustre/blizzard/stf218/scratch/emin/huggingface"
 export TRITON_CACHE_DIR="/lustre/blizzard/stf218/scratch/emin/triton"
@@ -34,7 +33,7 @@ export GPUS_PER_NODE=4
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 export MASTER_PORT=3442
 
-CONFIG_FILE=${CONFIG_FILE:-"./train_configs/demo_segmentation_2d.toml"}
+CONFIG_FILE=${CONFIG_FILE:-"./train_configs/dinov3_vitl16_2D_linear_cellmap_scratch.toml"}
 
 srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_segmentation.py --job.config_file ${CONFIG_FILE}
 

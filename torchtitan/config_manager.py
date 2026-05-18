@@ -86,7 +86,7 @@ class JobConfig:
         self.parser.add_argument("--model.num_classes", type=int, default=48, help="Number of classes in output head")
         self.parser.add_argument("--model.crop_size", type=int, nargs='+', default=[512], help="Size of crops (can be [int, int] or [int, int, int])")
         self.parser.add_argument("--model.val_crop_size", type=int, nargs=3, default=[512, 512, 512], help="Size of validation crops ([int, int, int])")
-        self.parser.add_argument("--model.use_fa3", default=False, action="store_true", help="Whether to use FlashAttention-3 in model implementation.")
+        self.parser.add_argument("--model.use_fa4", default=False, action="store_true", help="Whether to use FlashAttention-4 in model implementation.")
 
         # data configs
         self.parser.add_argument("--data.dataset_folder", type=str, default="/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data", help="Root directory for the dataset")
