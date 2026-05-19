@@ -8,7 +8,7 @@ save_traces_folder = "profile_trace"
 profile_freq = 10
 
 [metrics]
-log_freq = 100
+log_freq = 10
 eval_freq = 1000
 
 [model]
@@ -16,8 +16,8 @@ backbone = "dinov3_vitl16_3D"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3
 head = "linear"  # ["linear", "m2f"]
 dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
 num_classes = 64 
-crop_size = [512, 512, 512]
-val_crop_size = [512, 512, 512]
+crop_size = [256, 256, 256]
+val_crop_size = [256, 256, 256]
 use_fa4 = true  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision 
 
 [data]
@@ -37,6 +37,7 @@ data_parallel_replicate_degree = 1
 data_parallel_shard_degree = -1
 tensor_parallel_degree = 1
 compile = false
+# mixed_precision_param = "float32"
 
 [experimental]
 pipeline_parallel_degree = 1

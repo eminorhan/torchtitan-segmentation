@@ -25,9 +25,6 @@ VOLUMES_TO_BE_INVERTED = [
 ]
 # -------------------------------------------------------------------------------------------
 
-# # Global cache dictionary specifically for the isolated worker processes
-# WORKER_CACHE = {}
-
 def get_recon_sort_key(recon_name):
     match = re.search(r'recon-(\d+)', recon_name)
     return int(match.group(1)) if match else float('inf')
@@ -100,13 +97,6 @@ def process_volume_batch(batch):
         x_start = batch['x_start'][i]
         x_end = batch['x_end'][i]
         volume_name = batch['volume_name'][i]
-
-        # if WORKER_CACHE.get("current_zarr") != zarr_path:
-        #     WORKER_CACHE.clear()  
-        #     WORKER_CACHE["root"] = zarr.open(zarr_path, mode='r')
-        #     WORKER_CACHE["current_zarr"] = zarr_path
-            
-        # zarr_root = WORKER_CACHE["root"]
 
         zarr_root = zarr.open(zarr_path, mode='r')
         current_array = zarr_root[s0_path]

@@ -1,279 +1,297 @@
 import os
 import re
+import glob
 import torch
 import numpy as np
 import scipy.ndimage
-from typing import Tuple, Union
+import torch.distributed as dist
+
+from typing import Tuple, Union, List
 from torch.utils.data import IterableDataset, DataLoader
 from torchvision.transforms import v2
-from datasets import load_from_disk, load_dataset, Dataset
+from datasets import load_from_disk, load_dataset
 
-def make_transform_2d():
+# =========================================================
+# 1. TRANSFORMS & AUGMENTATIONS
+# =========================================================
+
+def get_base_transforms(is_3d: bool):
     to_float = v2.ToDtype(torch.float32, scale=True)
-    normalize = v2.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-    return v2.Compose([to_float, normalize])
-
-def make_transform_3d():
-    to_float = v2.ToDtype(torch.float32, scale=True)
-    normalize = v2.Normalize(mean=(0.449,), std=(0.226,))
-    return v2.Compose([to_float, normalize])
-
-transform_2d = make_transform_2d()
-transform_3d = make_transform_3d()
+    if is_3d:
+        return v2.Compose([to_float, v2.Normalize(mean=(0.449,), std=(0.226,))])
+    return v2.Compose([to_float, v2.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 
 def resize_array(arr: np.ndarray, target_shape: Tuple, order: int) -> np.ndarray:
-    """Helper to resize 2D or 3D arrays to the target crop size."""
-    if arr.shape == target_shape:
-        return arr
-    zoom_factor = [t / s for t, s in zip(target_shape, arr.shape)]
-    return scipy.ndimage.zoom(arr, zoom_factor, order=order, prefilter=False)
+    if arr.shape == target_shape: return arr
+    return scipy.ndimage.zoom(arr, [t / s for t, s in zip(target_shape, arr.shape)], order=order, prefilter=False)
 
-def get_base_crop_name(name: str) -> str:
-    """Removes the '_partX' suffix from 3D crop names to ensure 2D and 3D keys match perfectly."""
-    return re.sub(r'_part\d+$', '', name)
+def augment_3d(raw: np.ndarray, rng: np.random.Generator, label: np.ndarray = None):
+    for axis in range(3):
+        if rng.random() < 0.5:
+            raw = np.flip(raw, axis=axis)
+            if label is not None: label = np.flip(label, axis=axis)
+    k = rng.integers(0, 4)
+    if k > 0:
+        valid_planes = [(0, 1), (0, 2), (1, 2)]
+        axes = rng.choice([p for p in valid_planes if raw.shape[p[0]] == raw.shape[p[1]]])
+        raw = np.rot90(raw, k=k, axes=axes)
+        if label is not None: label = np.rot90(label, k=k, axes=axes)
+    return raw.copy(), (label.copy() if label is not None else None)
 
-# ---------------------------------------------------------
-# Dataset Iterators
-# ---------------------------------------------------------
+def augment_2d(raw: np.ndarray, rng: np.random.Generator, label: np.ndarray = None):
+    for axis in (0, 1):
+        if rng.random() < 0.5:
+            raw = np.flip(raw, axis=axis)
+            if label is not None: label = np.flip(label, axis=axis)
+    k = rng.integers(0, 4) if raw.shape[0] == raw.shape[1] else rng.choice([0, 2])
+    if k > 0:
+        raw = np.rot90(raw, k=k)
+        if label is not None: label = np.rot90(label, k=k)
+    return raw.copy(), (label.copy() if label is not None else None)
 
-class HFTrainDataset3D(IterableDataset):
-    def __init__(self, hf_dataset: Dataset, crop_size: Tuple[int, int, int], augment: bool = True, seed: int = 42):
-        super().__init__()
+
+# =========================================================
+# 2. THE 4 EXPLICIT DATASET CLASSES
+# =========================================================
+
+class CellMap3DDataset(IterableDataset):
+    """Labeled 3D data. Infinite random loop for train, sequential for val."""
+    def __init__(self, hf_dataset, crop_size: Tuple, is_val: bool = False, augment: bool = True, seed: int = 42):
+        self.dataset = hf_dataset
+        self.crop_size = crop_size
+        self.is_val = is_val
+        self.augment = augment
+        self.rng = np.random.default_rng(seed)
+        self.transform = get_base_transforms(is_3d=True)
+
+    def __iter__(self):
+        if self.is_val:
+            for item in self.dataset:
+                shape = tuple(item['shape'])
+                raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(shape)
+                label = np.frombuffer(item['label'], dtype=np.uint8).reshape(shape)
+                
+                raw = resize_array(raw, self.crop_size, 1)
+                label = resize_array(label, self.crop_size, 0)
+                
+                tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1, -1)
+                yield self.transform(tensor), torch.from_numpy(label).long()
+        else:
+            while True:
+                item = self.dataset[self.rng.integers(0, len(self.dataset))]
+                shape = tuple(item['shape'])
+                raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(shape)
+                label = np.frombuffer(item['label'], dtype=np.uint8).reshape(shape)
+                
+                raw = resize_array(raw, self.crop_size, 1)
+                label = resize_array(label, self.crop_size, 0)
+                
+                if self.augment: 
+                    raw, label = augment_3d(raw, self.rng, label)
+                
+                tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1, -1)
+                yield self.transform(tensor), torch.from_numpy(label).long()
+
+
+class CellMap2DDataset(IterableDataset):
+    """Labeled 2D data. Infinite random loop for train, sequential (with metadata) for val."""
+    def __init__(self, hf_dataset, crop_size: Tuple, is_val: bool = False, augment: bool = True, seed: int = 42):
+        self.dataset = hf_dataset
+        self.crop_size = crop_size
+        self.is_val = is_val
+        self.augment = augment
+        self.rng = np.random.default_rng(seed)
+        self.transform = get_base_transforms(is_3d=False)
+
+    def __iter__(self):
+        if self.is_val:
+            for i, item in enumerate(self.dataset):
+                raw, label = np.array(item['image']), np.array(item['label'])
+                raw = resize_array(raw, self.crop_size, 1)
+                label = resize_array(label, self.crop_size, 0)
+                
+                tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1)
+                meta = {"sample_id": item.get('crop_name', f"val_{i}"), "axis": item.get('axis', 'unk'), "slice": item.get('slice', 0)}
+                yield self.transform(tensor), torch.from_numpy(label).long(), meta
+        else:
+            while True:
+                item = self.dataset[self.rng.integers(0, len(self.dataset))]
+                raw, label = np.array(item['image']), np.array(item['label'])
+                
+                raw = resize_array(raw, self.crop_size, 1)
+                label = resize_array(label, self.crop_size, 0)
+                
+                if self.augment: 
+                    raw, label = augment_2d(raw, self.rng, label)
+                
+                tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1)
+                yield self.transform(tensor), torch.from_numpy(label).long()
+
+
+class OpenOrganelle2DDataset(IterableDataset):
+    """Unlabeled 2D data. Infinite random stream returning images and dummy zero labels."""
+    def __init__(self, hf_dataset, crop_size: Tuple, augment: bool = True, seed: int = 42):
         self.dataset = hf_dataset
         self.crop_size = crop_size
         self.augment = augment
         self.rng = np.random.default_rng(seed)
-
-    def _augment_data(self, raw: np.ndarray, label: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        for axis in range(3):
-            if self.rng.random() < 0.5:
-                raw = np.flip(raw, axis=axis)
-                label = np.flip(label, axis=axis)
-        k = self.rng.integers(0, 4)
-        if k > 0:
-            valid_planes = []
-            shape = raw.shape
-            if shape[0] == shape[1]: valid_planes.append((0, 1))
-            if shape[0] == shape[2]: valid_planes.append((0, 2))
-            if shape[1] == shape[2]: valid_planes.append((1, 2))
-            
-            if valid_planes:
-                axes = self.rng.choice(valid_planes)
-                raw = np.rot90(raw, k=k, axes=axes)
-                label = np.rot90(label, k=k, axes=axes)
-        return raw.copy(), label.copy()
+        self.transform = get_base_transforms(is_3d=False)
 
     def __iter__(self):
         while True:
-            idx = self.rng.integers(0, len(self.dataset))
-            item = self.dataset[idx]
-
-            shape = tuple(item['shape'])
-            raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(shape)
-            label = np.frombuffer(item['label'], dtype=np.uint8).reshape(shape) if 'label' in item else np.zeros_like(raw)
-
-            final_raw = resize_array(raw, self.crop_size, order=1)
-            final_label = resize_array(label, self.crop_size, order=0)
-
-            if self.augment:
-                final_raw, final_label = self._augment_data(final_raw, final_label)
-
-            raw_tensor = torch.from_numpy(final_raw[np.newaxis, ...])
-            label_tensor = torch.from_numpy(final_label).long()
-
-            yield transform_3d(raw_tensor.expand(3, -1, -1, -1)), label_tensor
+            item = self.dataset[self.rng.integers(0, len(self.dataset))]
+            raw = np.array(item['image'])
+            raw = resize_array(raw, self.crop_size, 1)
+            
+            if self.augment: 
+                raw, _ = augment_2d(raw, self.rng)
+            
+            tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1)
+            dummy_label = torch.zeros(self.crop_size, dtype=torch.long)
+            yield self.transform(tensor), dummy_label
 
 
-class HFTrainDataset2D(IterableDataset):
-    def __init__(self, hf_dataset: Dataset, crop_size: Tuple[int, int], augment: bool = True, seed: int = 42):
-        super().__init__()
-        self.dataset = hf_dataset
+class OpenOrganelle3DStreamingDataset(IterableDataset):
+    """Unlabeled 400TB 3D data. Lazily streams pre-sharded part_X directories."""
+    def __init__(self, part_dirs: List[str], crop_size: Tuple, augment: bool = True, seed: int = 42):
+        self.part_dirs = sorted(part_dirs)
         self.crop_size = crop_size
         self.augment = augment
-        self.rng = np.random.default_rng(seed)
-
-    def _augment_data(self, raw: np.ndarray, label: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        if self.rng.random() < 0.5:
-            raw = np.flip(raw, axis=0)
-            label = np.flip(label, axis=0)
-        if self.rng.random() < 0.5:
-            raw = np.flip(raw, axis=1)
-            label = np.flip(label, axis=1)
-
-        k = self.rng.integers(0, 4) if raw.shape[0] == raw.shape[1] else self.rng.choice([0, 2])
-        if k > 0:
-            raw = np.rot90(raw, k=k)
-            label = np.rot90(label, k=k)
-            
-        return raw.copy(), label.copy()
+        self.seed = seed
+        self.transform = get_base_transforms(is_3d=True)
 
     def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        worker_id = worker_info.id if worker_info else 0
+        num_workers = worker_info.num_workers if worker_info else 1
+        
+        worker_parts = self.part_dirs[worker_id::num_workers]
+        if not worker_parts: return
+
+        rng = np.random.default_rng(self.seed + worker_id)
+
         while True:
-            idx = self.rng.integers(0, len(self.dataset))
-            item = self.dataset[idx]
+            rng.shuffle(worker_parts)
+            for part_dir in worker_parts:
+                part_ds = load_from_disk(part_dir)
+                indices = rng.permutation(len(part_ds))
 
-            raw = np.array(item['image'])
-            label = np.array(item['label']) if 'label' in item else np.zeros_like(raw)
-
-            final_raw = resize_array(raw, self.crop_size, order=1)
-            final_label = resize_array(label, self.crop_size, order=0)
-
-            if self.augment:
-                final_raw, final_label = self._augment_data(final_raw, final_label)
-
-            raw_tensor = torch.from_numpy(final_raw[np.newaxis, ...])
-            label_tensor = torch.from_numpy(final_label).long()
-
-            yield transform_2d(raw_tensor.expand(3, -1, -1)), label_tensor
-
-
-class HFValidationDataset3D(IterableDataset):
-    def __init__(self, hf_dataset: Dataset, val_crop_size: Tuple[int, int, int]):
-        super().__init__()
-        self.dataset = hf_dataset
-        self.val_crop_size = val_crop_size
-
-    def __iter__(self):
-        for item in self.dataset:
-            shape = tuple(item['shape'])
-            raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(shape)
-            label = np.frombuffer(item['label'], dtype=np.uint8).reshape(shape) if 'label' in item else np.zeros_like(raw)
-
-            final_raw = resize_array(raw, self.val_crop_size, order=1)
-            final_label = resize_array(label, self.val_crop_size, order=0)
-
-            raw_tensor = torch.from_numpy(final_raw).unsqueeze(0).expand(3, -1, -1, -1)
-            label_tensor = torch.from_numpy(final_label).long()
-
-            yield transform_3d(raw_tensor), label_tensor
+                for idx in indices:
+                    item = part_ds[int(idx)]
+                    raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(tuple(item['shape']))
+                    raw = resize_array(raw, self.crop_size, 1)
+                    
+                    if self.augment: 
+                        raw, _ = augment_3d(raw, rng)
+                    
+                    tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1, -1)
+                    dummy_label = torch.zeros(self.crop_size, dtype=torch.long)
+                    yield self.transform(tensor), dummy_label
 
 
-class HFValidationDataset2D(IterableDataset):
-    def __init__(self, hf_dataset: Dataset, val_crop_size: Tuple[int, int]):
-        super().__init__()
-        self.dataset = hf_dataset
-        self.val_crop_size = val_crop_size
+# =========================================================
+# 3. DETERMINISTIC SPLIT LOGIC (Only used for CellMap)
+# =========================================================
 
-    def __iter__(self):
-        for i, item in enumerate(self.dataset):
-            raw = np.array(item['image'])
-            label = np.array(item['label']) if 'label' in item else np.zeros_like(raw)
+def _get_cellmap_splits(dataset, rank, world_size, num_workers):
+    """Holds out exactly 64 volumes consistently across ranks."""
+    unique_crops = sorted(list(set(re.sub(r'_part\d+$', '', n) for n in dataset['crop_name'])))
+    
+    rng = np.random.default_rng(42)
+    rng.shuffle(unique_crops)
+    val_crop_names = set(unique_crops[:64])
+    
+    if world_size > 1 and rank > 0: dist.barrier()
 
-            final_raw = resize_array(raw, self.val_crop_size, order=1)
-            final_label = resize_array(label, self.val_crop_size, order=0)
+    train_hf = dataset.filter(
+        lambda b: [re.sub(r'_part\d+$', '', n) not in val_crop_names for n in b["crop_name"]],
+        batched=True, num_proc=num_workers if rank == 0 else 1, desc="Train Split" if rank == 0 else None
+    )
+    val_hf = dataset.filter(
+        lambda b: [re.sub(r'_part\d+$', '', n) in val_crop_names for n in b["crop_name"]],
+        batched=True, num_proc=num_workers if rank == 0 else 1, desc="Val Split" if rank == 0 else None
+    )
 
-            raw_tensor = torch.from_numpy(final_raw).unsqueeze(0).expand(3, -1, -1)
-            label_tensor = torch.from_numpy(final_label).long()
+    if world_size > 1 and rank == 0: dist.barrier()
+    
+    return train_hf, val_hf
 
-            meta = {
-                "sample_id": item.get('crop_name', f"val_sample_{i}"),
-                "axis": item.get('axis', 'unknown'),
-                "slice_idx": item.get('slice', 0)
-            }
 
-            yield transform_2d(raw_tensor), label_tensor, meta
-
-# ---------------------------------------------------------
-# Loader Builder
-# ---------------------------------------------------------
+# =========================================================
+# 4. EXPLICIT ROUTER
+# =========================================================
 
 def build_data_loader(
-    batch_size: int,
+    dataset_name: str,
     root_dir: str,
-    crop_size: Union[Tuple[int, int], Tuple[int, int, int]], 
-    val_crop_size: Union[Tuple[int, int], Tuple[int, int, int]], 
+    batch_size: int,
+    crop_size: Union[Tuple, int], 
+    val_crop_size: Union[Tuple, int] = None, 
     rank: int = 0,
     world_size: int = 1,
     augment: bool = False,
     num_workers: int = 4
 ) -> Tuple[DataLoader, DataLoader]:
-    """
-    Builds Train and Validation loaders. Performs deterministic volume-level splitting if labels are present, 
-    otherwise uses 100% of the data for training.
-    """
-    is_3d = (len(crop_size) == 3)
+    
+    if rank == 0:
+        print(f"Initializing DataLoader for: {dataset_name.upper()}")
 
-    # 1. Load the dataset
-    try:
-        if is_3d:
-            dataset = load_from_disk(root_dir)
-        else:
-            try:
-                dataset = load_dataset(root_dir, split="train")
-            except Exception:
-                dataset = load_from_disk(root_dir)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load dataset from {root_dir}. Error: {e}")
-
-    # 2. Train / Validation Split Logic
-    if "label" in dataset.column_names:
-        # We have labeled data -> needs a validation split.
+    # ---------------------------------------------------------
+    # CASE 1: OpenOrganelle 3D (Unlabeled, Massive 400TB Streamer)
+    # ---------------------------------------------------------
+    if dataset_name == 'openorganelle-3d':
+        part_dirs = sorted(glob.glob(os.path.join(root_dir, "part_*")))
+        if not part_dirs: raise FileNotFoundError(f"No part_X folders found in {root_dir}")
         
-        if "crop_name" in dataset.column_names:
-            # Extract unique base crop names (stripping _partX from 3D to match 2D)
-            all_crop_names = dataset['crop_name']
-            unique_crops = sorted(list(set(get_base_crop_name(n) for n in all_crop_names)))
-            
-            # Deterministically select exactly 64 crops for validation
-            rng = np.random.default_rng(42) # Hardcoded seed guarantees consistency
-            rng.shuffle(unique_crops)
-            val_crop_names = set(unique_crops[:64])
-            
-            if rank == 0:
-                print(f"Detected labeled dataset with crop metadata. Holding out 64 specific volume crops for validation.")
-                print(f"Total Unique Volumes: {len(unique_crops)} | Train: {len(unique_crops) - 64} | Val: 64")
-                print(f"Val crop names: {sorted(list(val_crop_names))}")
+        rank_assigned_parts = part_dirs[rank::world_size]
+        dataset = OpenOrganelle3DStreamingDataset(rank_assigned_parts, crop_size, augment, seed=42+rank)
+        
+        train_loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
+        return train_loader, None
 
-            # Ranks > 0 wait here until Rank 0 finishes filtering and caching to disk
-            if world_size > 1 and rank > 0:
-                dist.barrier()
+    # ---------------------------------------------------------
+    # CASE 2: OpenOrganelle 2D (Unlabeled, Standard Load)
+    # ---------------------------------------------------------
+    elif dataset_name == 'openorganelle-2d':
+        dataset = load_dataset(root_dir, split="train")
+        train_dataset = OpenOrganelle2DDataset(dataset, crop_size, augment, seed=42+rank)
+        
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
+        return train_loader, None
 
-            train_hf = dataset.filter(
-                lambda batch: [get_base_crop_name(n) not in val_crop_names for n in batch["crop_name"]],
-                batched=True,
-                num_proc=num_workers if rank == 0 else 1, # Only need multiple procs on Rank 0
-                desc="Isolating Training Data" if rank == 0 else None
-            )
-            
-            val_hf = dataset.filter(
-                lambda batch: [get_base_crop_name(n) in val_crop_names for n in batch["crop_name"]],
-                batched=True,
-                num_proc=num_workers if rank == 0 else 1,
-                desc="Isolating Validation Data" if rank == 0 else None
-            )
+    # ---------------------------------------------------------
+    # CASE 3: CellMap 3D (Labeled, Needs Validation Split)
+    # ---------------------------------------------------------
+    elif dataset_name == 'cellmap-3d':
+        dataset = load_dataset(root_dir, split="train")
+        train_ds, val_ds = _get_cellmap_splits(dataset, rank, world_size, num_workers)
+        
+        if world_size > 1:
+            val_ds = val_ds.shard(num_shards=world_size, index=rank)
 
-            # Rank 0 waits here until all other ranks have successfully loaded from the cache
-            if world_size > 1 and rank == 0:
-                dist.barrier()
-        else:
-            # Fallback just in case you ever load a generic labeled dataset without crop names
-            if rank == 0:
-                print(f"Detected labeled dataset without crop metadata. Falling back to 11% random row split.")
-            split_dataset = dataset.train_test_split(test_size=0.11, seed=42)
-            train_hf = split_dataset['train']
-            val_hf = split_dataset['test']
-            
+        train_dataset = CellMap3DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=42+rank)
+        val_dataset = CellMap3DDataset(val_ds, val_crop_size, is_val=True)
+
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
+        return train_loader, val_loader
+
+    # ---------------------------------------------------------
+    # CASE 4: CellMap 2D (Labeled, Needs Validation Split)
+    # ---------------------------------------------------------
+    elif dataset_name == 'cellmap-2d':
+        dataset = load_dataset(root_dir, split="train")
+        train_ds, val_ds = _get_cellmap_splits(dataset, rank, world_size, num_workers)
+        
+        if world_size > 1:
+            val_ds = val_ds.shard(num_shards=world_size, index=rank)
+
+        train_dataset = CellMap2DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=42+rank)
+        val_dataset = CellMap2DDataset(val_ds, val_crop_size, is_val=True)
+
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
+        return train_loader, val_loader
+
     else:
-        # Unlabeled data -> No validation split
-        if rank == 0:
-             print(f"Detected unlabeled dataset (no 'label' column). Using 100% of data for training.")
-        train_hf = dataset
-        val_hf = None
-
-    # 3. Apply Distributed Sharding to Validation dataset (Train is iterable and random)
-    if val_hf is not None and world_size > 1:
-        val_hf = val_hf.shard(num_shards=world_size, index=rank)
-
-    # 4. Instantiate iterators
-    if is_3d:
-        train_dataset = HFTrainDataset3D(train_hf, crop_size=crop_size, augment=augment)
-        val_dataset = HFValidationDataset3D(val_hf, val_crop_size=val_crop_size) if val_hf else None
-    else:
-        train_dataset = HFTrainDataset2D(train_hf, crop_size=crop_size, augment=augment)
-        val_dataset = HFValidationDataset2D(val_hf, val_crop_size=val_crop_size) if val_hf else None
-
-    # 5. Build DataLoaders (num_workers=0 because HF Iterable logic handles data flow internally for now)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0) if val_dataset else None
-
-    return train_loader, val_loader
+        raise ValueError(f"Unknown dataset_name: {dataset_name}. Expected openorganelle-2d, openorganelle-3d, cellmap-2d, or cellmap-3d")
