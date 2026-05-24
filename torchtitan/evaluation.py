@@ -56,30 +56,21 @@ def evaluate_2d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
     # Initialize the counters
     total_val_loss = 0
     num_val_samples = 0
-    conf_matrix_all = torch.zeros((job_config.model.num_classes, job_config.model.num_classes), device='cuda')  # initialize a confusion matrix on GPU
+    conf_matrix_all = torch.zeros((job_config.model.num_classes, job_config.model.num_classes), device='cuda')
 
-    # create the gif dump directory if it doesn't exist
     visuals_path = Path(job_config.job.dump_folder) / "visuals"
     visuals_path.mkdir(parents=True, exist_ok=True)
 
-    # Stores accumulating 3D logits/probabilities
-    # Key: sample_id -> Value: Tensor (Num_Classes, D, H, W)
     predictions = {}
-    
-    # Stores accumulating 3D ground truth labels
-    # Key: sample_id -> Value: Tensor (D, H, W)
     ground_truths = {}
-
-    # Stores accumulating 3D raw inputs
-    # Key: sample_id -> Value: Tensor (D, H, W)
     raw_inputs = {}
 
     for val_inputs, val_targets, val_metas in val_loader:
         val_inputs = val_inputs.cuda()
         val_targets = val_targets.cuda()
+        
         val_preds = model(val_inputs)
         val_preds = resample_fn(val_preds, val_targets, job_config.model.crop_size)
-        # logger.info(f"val inputs/targets/preds shape: {images.shape}/{labels.shape}/{outputs.shape}")
 
         # 1. Val loss
         val_loss = loss_fn(val_preds, val_targets)
@@ -92,23 +83,19 @@ def evaluate_2d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
         
         for b in range(val_batch_size):
             sample_id = val_metas["sample_id"][b]
-            axis = val_metas["axis"][b].item()
-            slice_idx = val_metas["slice_idx"][b].item()
-            vol_shape = tuple(val_metas["vol_shape"][b].tolist())  # (D, H, W)
+            axis_str = val_metas["axis"][b]
+            axis = {'z': 0, 'y': 1, 'x': 2}[axis_str]
+            slice_idx = int(val_metas["slice_idx"][b])
+            vol_shape = tuple(val_metas["vol_shape"][b].tolist())
             
-            # --- Initialize Buffers ---
+            # --- Initialize Buffers on CPU (Not CUDA) ---
             if sample_id not in predictions:
-                # Prediction Buffer (Float)
                 predictions[sample_id] = torch.zeros((job_config.model.num_classes,) + vol_shape, device='cuda')
-                
-                # Ground Truth Buffer (Long/Int)
-                # We only need to init this once per sample
                 ground_truths[sample_id] = torch.zeros(vol_shape, dtype=torch.long, device='cuda')
-                raw_inputs[sample_id] = torch.zeros(vol_shape, dtype=torch.float32, device='cpu')  # this need not be on GPU
+                raw_inputs[sample_id] = torch.zeros(vol_shape, dtype=torch.float32, device='cpu')
 
-            # --- Accumulate Predictions (All Axes) ---
-            current_slice_probs = val_probs[b]  
-            # logger.info(f"current_slice_probs shape: {current_slice_probs.shape}")
+            # --- Accumulate Predictions ---
+            current_slice_probs = val_probs[b]
             
             if axis == 0:
                 predictions[sample_id][:, slice_idx, :, :] += current_slice_probs
@@ -117,16 +104,15 @@ def evaluate_2d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
             elif axis == 2:
                 predictions[sample_id][:, :, :, slice_idx] += current_slice_probs
             
-            # --- Accumulate Labels (Axis 0 Only) ---
-            # We use Axis 0 (Z) to reconstruct the label volume (other axes are redundant in this case). 
+            # --- Accumulate Labels ---
             if axis == 0:
                 ground_truths[sample_id][slice_idx, :, :] = val_targets[b]
-                raw_inputs[sample_id][slice_idx, :, :] = val_inputs[b, 0, :, :].detach().cpu()  # take the first channel only
+                raw_inputs[sample_id][slice_idx, :, :] = val_inputs[b, 0, :, :].detach().cpu()
 
     # crop-wise (voumetric predictions)
     for sample_id, pred_vol in predictions.items():
         # Average the predictions & take argmax over classes
-        final_seg = torch.argmax(pred_vol / 3.0, dim=0)  # (D, H, W)
+        pred_vol = torch.argmax(pred_vol, dim=0)  # (D, H, W)
         
         # Retrieve the reconstructed 3D label
         gt_vol = ground_truths[sample_id] # (D, H, W)
@@ -135,16 +121,17 @@ def evaluate_2d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
         raw_vol = raw_inputs[sample_id] # (D, H, W)
 
         # mIoU
-        batch_conf_matrix = compute_confusion_matrix(final_seg, gt_vol, job_config.model.num_classes)
+        batch_conf_matrix = compute_confusion_matrix(pred_vol, gt_vol, job_config.model.num_classes)
         conf_matrix_all += batch_conf_matrix
 
-        # Visualize results
+        safe_sample_id = str(sample_id).replace("/", "_").replace("\\", "_")
+
         visualize_slices(
             raw_vol,
-            final_seg,
+            pred_vol,
             gt_vol,
             job_config.model.num_classes,
-            visuals_path / f"{job_config.model.backbone}_val_sample_{sample_id}.gif"
+            visuals_path / f"{job_config.model.backbone}_val_sample_{safe_sample_id}.gif"
         )
 
     # Reduce val loss
@@ -160,14 +147,11 @@ def evaluate_2d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
 
     # Mean IoU calculation
     true_positive = torch.diag(conf_matrix_all)
-    rows_sum = conf_matrix_all.sum(dim=1) # Ground truth pixels per class
-    cols_sum = conf_matrix_all.sum(dim=0) # Predicted pixels per class
+    rows_sum = conf_matrix_all.sum(dim=1) 
+    cols_sum = conf_matrix_all.sum(dim=0) 
     union = rows_sum + cols_sum - true_positive
     
-    # Calculate IoU per class
     iou_per_class = true_positive / (union + 1e-6)
-    
-    # Mean IoU (ignoring classes that don't exist in targets)
     avg_miou = iou_per_class[rows_sum > 0].mean().item()
 
     return avg_val_loss, avg_miou

@@ -203,7 +203,7 @@ def generate_3d_volumes(root_dir):
 def main():
     parser = argparse.ArgumentParser(description="Create 3D volume dataset for CellMap.")
     parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data", help="Root directory for zarr volumes")
-    parser.add_argument("--local_save_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/seg3d/data_cellmap_3d", help="Local path to save dataset")
+    parser.add_argument("--repo_id", type=str, default="eminorhan/cellmap-3d", help="Local path to save dataset")
 
     args = parser.parse_args()
 
@@ -229,10 +229,9 @@ def main():
     dataset = dataset.shuffle(seed=42)
     print("Dataset shuffled!")
 
-    # Save the dataset directly to local disk with shard size limit
-    print(f"Saving dataset locally to {args.local_save_dir}...")
-    dataset.save_to_disk(args.local_save_dir, max_shard_size="2GB")
-    print("Dataset saved!")
+    # Push the dataset directly to Hugging Face with shard size limit
+    dataset.push_to_hub(args.repo_id, max_shard_size="2GB")
+    print("Dataset uploaded to HF Hub!")
 
 if __name__ == "__main__":
     main()

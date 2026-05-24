@@ -89,7 +89,8 @@ class JobConfig:
         self.parser.add_argument("--model.use_fa4", default=False, action="store_true", help="Whether to use FlashAttention-4 in model implementation.")
 
         # data configs
-        self.parser.add_argument("--data.dataset_folder", type=str, default="/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data", help="Root directory for the dataset")
+        self.parser.add_argument("--data.dataset_name", type=str, default="cellmap-2d", help="Name of the dataset to load.")
+        self.parser.add_argument("--data.dataset_path", type=str, default="eminorhan/cellmap-2d", help="Root directory for the dataset")
         self.parser.add_argument("--data.augment", default=False, action="store_true", help="Whether to use data augmentation (default: False).")
 
         # optimizer configs

@@ -106,13 +106,35 @@ class CellMap2DDataset(IterableDataset):
     def __iter__(self):
         if self.is_val:
             for i, item in enumerate(self.dataset):
-                raw, label = np.array(item['image']), np.array(item['label'])
+                shape = tuple(item['shape'])
+                raw = np.frombuffer(item['volume'], dtype=np.uint8).reshape(shape)
+                label = np.frombuffer(item['label'], dtype=np.uint8).reshape(shape)
+                
                 raw = resize_array(raw, self.crop_size, 1)
                 label = resize_array(label, self.crop_size, 0)
                 
-                tensor = torch.from_numpy(raw).unsqueeze(0).expand(3, -1, -1)
-                meta = {"sample_id": item.get('crop_name', f"val_{i}"), "axis": item.get('axis', 'unk'), "slice": item.get('slice', 0)}
-                yield self.transform(tensor), torch.from_numpy(label).long(), meta
+                vol_shape = torch.tensor(self.crop_size)
+                
+                for axis_idx, axis_name in enumerate(['z', 'y', 'x']):
+                    for slice_idx in range(self.crop_size[axis_idx]):
+                        if axis_name == 'z':
+                            raw_slice = raw[slice_idx, :, :]
+                            label_slice = label[slice_idx, :, :]
+                        elif axis_name == 'y':
+                            raw_slice = raw[:, slice_idx, :]
+                            label_slice = label[:, slice_idx, :]
+                        elif axis_name == 'x':
+                            raw_slice = raw[:, :, slice_idx]
+                            label_slice = label[:, :, slice_idx]
+                            
+                        tensor = torch.from_numpy(raw_slice).unsqueeze(0).expand(3, -1, -1)
+                        meta = {
+                            "sample_id": item['crop_name'], 
+                            "axis": axis_name, 
+                            "slice_idx": slice_idx,
+                            "vol_shape": vol_shape
+                        }
+                        yield self.transform(tensor), torch.from_numpy(label_slice).long(), meta
         else:
             while True:
                 item = self.dataset[self.rng.integers(0, len(self.dataset))]
@@ -200,16 +222,19 @@ def _get_cellmap_splits(dataset, rank, world_size, num_workers):
     rng = np.random.default_rng(42)
     rng.shuffle(unique_crops)
     val_crop_names = set(unique_crops[:64])
+
+    if rank == 0:
+        print(f"Validation crops: {val_crop_names}")
     
     if world_size > 1 and rank > 0: dist.barrier()
 
     train_hf = dataset.filter(
         lambda b: [re.sub(r'_part\d+$', '', n) not in val_crop_names for n in b["crop_name"]],
-        batched=True, num_proc=num_workers if rank == 0 else 1, desc="Train Split" if rank == 0 else None
+        batched=True, num_proc=num_workers, desc="Train Split" if rank == 0 else None
     )
     val_hf = dataset.filter(
         lambda b: [re.sub(r'_part\d+$', '', n) in val_crop_names for n in b["crop_name"]],
-        batched=True, num_proc=num_workers if rank == 0 else 1, desc="Val Split" if rank == 0 else None
+        batched=True, num_proc=num_workers, desc="Val Split" if rank == 0 else None
     )
 
     if world_size > 1 and rank == 0: dist.barrier()
@@ -223,14 +248,14 @@ def _get_cellmap_splits(dataset, rank, world_size, num_workers):
 
 def build_data_loader(
     dataset_name: str,
-    root_dir: str,
+    dataset_path: str,
     batch_size: int,
     crop_size: Union[Tuple, int], 
     val_crop_size: Union[Tuple, int] = None, 
     rank: int = 0,
     world_size: int = 1,
     augment: bool = False,
-    num_workers: int = 4
+    num_workers: int = 8
 ) -> Tuple[DataLoader, DataLoader]:
     
     if rank == 0:
@@ -240,8 +265,8 @@ def build_data_loader(
     # CASE 1: OpenOrganelle 3D (Unlabeled, Massive 400TB Streamer)
     # ---------------------------------------------------------
     if dataset_name == 'openorganelle-3d':
-        part_dirs = sorted(glob.glob(os.path.join(root_dir, "part_*")))
-        if not part_dirs: raise FileNotFoundError(f"No part_X folders found in {root_dir}")
+        part_dirs = sorted(glob.glob(os.path.join(dataset_path, "part_*")))
+        if not part_dirs: raise FileNotFoundError(f"No part_X folders found in {dataset_path}")
         
         rank_assigned_parts = part_dirs[rank::world_size]
         dataset = OpenOrganelle3DStreamingDataset(rank_assigned_parts, crop_size, augment, seed=42+rank)
@@ -253,7 +278,7 @@ def build_data_loader(
     # CASE 2: OpenOrganelle 2D (Unlabeled, Standard Load)
     # ---------------------------------------------------------
     elif dataset_name == 'openorganelle-2d':
-        dataset = load_dataset(root_dir, split="train")
+        dataset = load_dataset(dataset_path, split="train")
         train_dataset = OpenOrganelle2DDataset(dataset, crop_size, augment, seed=42+rank)
         
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
@@ -263,7 +288,7 @@ def build_data_loader(
     # CASE 3: CellMap 3D (Labeled, Needs Validation Split)
     # ---------------------------------------------------------
     elif dataset_name == 'cellmap-3d':
-        dataset = load_dataset(root_dir, split="train")
+        dataset = load_dataset(dataset_path, split="train")
         train_ds, val_ds = _get_cellmap_splits(dataset, rank, world_size, num_workers)
         
         if world_size > 1:
@@ -280,9 +305,12 @@ def build_data_loader(
     # CASE 4: CellMap 2D (Labeled, Needs Validation Split)
     # ---------------------------------------------------------
     elif dataset_name == 'cellmap-2d':
-        dataset = load_dataset(root_dir, split="train")
-        train_ds, val_ds = _get_cellmap_splits(dataset, rank, world_size, num_workers)
+        dataset = load_dataset(dataset_path, split="train")
+        train_ds, _ = _get_cellmap_splits(dataset, rank, world_size, num_workers)
         
+        dataset_3d = load_dataset(dataset_path.replace("-2d", "-3d"), split="train")
+        _, val_ds = _get_cellmap_splits(dataset_3d, rank, world_size, num_workers)
+
         if world_size > 1:
             val_ds = val_ds.shard(num_shards=world_size, index=rank)
 
@@ -290,7 +318,7 @@ def build_data_loader(
         val_dataset = CellMap2DDataset(val_ds, val_crop_size, is_val=True)
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
+        val_loader = DataLoader(val_dataset, batch_size=1, num_workers=0)
         return train_loader, val_loader
 
     else:

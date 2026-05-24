@@ -94,12 +94,13 @@ def main(job_config: JobConfig):
 
     # build dataloaders
     train_loader, val_loader = build_data_loader(
+        job_config.data.dataset_name,
+        job_config.data.dataset_path,
         job_config.training.batch_size,
-        job_config.data.dataset_folder,
         tuple(job_config.model.crop_size),
         tuple(job_config.model.val_crop_size),
         dp_rank,
-        world_size,
+        dp_degree,
         job_config.data.augment
     )
 
