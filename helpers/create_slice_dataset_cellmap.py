@@ -151,6 +151,7 @@ def generate_2d_slices(root_dir):
                     continue
                 
                 label_vol = np.array(label_array)
+                
                 if label_vol.shape != raw_crop_3d.shape:
                     print(f"Reshaping label volume...")
                     zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]

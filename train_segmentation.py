@@ -105,8 +105,19 @@ def main(job_config: JobConfig):
     )
 
     # build model skeleton (TODO: maybe try 'meta' init here). NOTE: we load the pretrained weights during ckpt.load() below
-    backbone = torch.hub.load(job_config.model.dinov3_repo_folder, job_config.model.backbone, source="local", use_fa4=job_config.model.use_fa4, pretrained=False)
-    model = build_segmentation_decoder(backbone, decoder_type=job_config.model.head, num_classes=job_config.model.num_classes)
+    backbone = torch.hub.load(
+        job_config.model.dinov3_repo_folder, 
+        job_config.model.backbone, 
+        source="local", 
+        use_fa4=job_config.model.use_fa4, 
+        pos_embed_rope_type=job_config.model.rope_type, 
+        pretrained=False
+    )
+    model = build_segmentation_decoder(
+        backbone, 
+        decoder_type=job_config.model.head, 
+        num_classes=job_config.model.num_classes
+    )
 
     if torch.distributed.get_rank() == 0:
         logger.info(f"Model: {model}")

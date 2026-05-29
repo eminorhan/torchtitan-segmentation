@@ -154,13 +154,11 @@ def generate_3d_volumes(root_dir):
                     continue
                 
                 label_vol = np.array(label_array)
-                target_shape = label_vol.shape
 
-                # Resize Raw
-                if raw_crop_3d.shape != target_shape:
-                    print(f"Reshaping raw volume for {crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
-                    raw_zoom = [t / s for t, s in zip(target_shape, raw_crop_3d.shape)]
-                    raw_crop_3d = scipy.ndimage.zoom(raw_crop_3d, raw_zoom, order=3, prefilter=False)
+                if label_vol.shape != raw_crop_3d.shape:
+                    print(f"Reshaping label volume for {crop_name} from {label_vol.shape} to {raw_crop_3d.shape} ...")
+                    zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]
+                    label_vol = scipy.ndimage.zoom(label_vol, zoom_factor, order=0, prefilter=False)
                 
                 # 3. Normalize 3D volume
                 vol_3d_uint8 = normalize_to_uint8(raw_crop_3d)
@@ -168,7 +166,7 @@ def generate_3d_volumes(root_dir):
                     print(f"Skipping crop {full_crop_name} because it is entirely uniform or just padding.")
                     continue
 
-                print(f"Label volume shape: {vol_3d_uint8.shape}, Raw volume shape: {raw_crop_3d.shape}")
+                print(f"Label volume shape: {label_vol.shape}, Raw volume shape: {vol_3d_uint8.shape}")
 
                 label_vol_uint8 = label_vol.astype(np.uint8)
 

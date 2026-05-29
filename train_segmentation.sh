@@ -9,7 +9,7 @@
 #SBATCH --time=6:00:00
 #SBATCH --job-name=train_segmentation
 #SBATCH --output=train_segmentation_%A_%a.out
-#SBATCH --array=0-999%1
+#SBATCH --array=0-9%1
 
 # activate venv
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate
@@ -33,7 +33,7 @@ export GPUS_PER_NODE=4
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 export MASTER_PORT=3442
 
-CONFIG_FILE=${CONFIG_FILE:-"./train_configs/dinov3_vitl16_2D_linear.toml"}
+CONFIG_FILE=${CONFIG_FILE:-"./train_configs/dinov3_vitl16_3D_linear.toml"}
 
 srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_segmentation.py --job.config_file ${CONFIG_FILE}
 

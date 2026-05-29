@@ -1,5 +1,3 @@
-# torchtitan Config.toml
-
 [job]
 dump_folder = "./outputs/dinov3_vitl16_3D_linear_no_bf16"
 description = "segmentation training"
@@ -12,20 +10,19 @@ profile_freq = 10
 [metrics]
 log_freq = 100
 eval_freq = 100
-enable_tensorboard = false
-save_tb_folder = "tb"
 
 [model]
 backbone = "dinov3_vitl16_3D"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3_vitl16", "dinov3_vitb16"] + 3D versions
 head = "linear"  # ["linear", "m2f"]
 dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
 num_classes = 64 
-crop_size = [480, 480, 480]
-val_crop_size = [480, 480, 480]
-use_fa3 = false  # use FlashAttention-3? NOTE: FA-3 requires bf16 mixed precision 
+crop_size = [320, 320, 320]
+val_crop_size = [320, 320, 320]
+use_fa4 = false  # use FlashAttention-3? NOTE: FA-3 requires bf16 mixed precision 
 
 [data]
-dataset_folder = "/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data"
+dataset_name = "cellmap-3d"
+dataset_path = "eminorhan/cellmap-3d"
 augment = true  # whether to use "cheap" data augmentations
 
 [optimizer]

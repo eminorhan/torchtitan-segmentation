@@ -87,6 +87,7 @@ class JobConfig:
         self.parser.add_argument("--model.crop_size", type=int, nargs='+', default=[512], help="Size of crops (can be [int, int] or [int, int, int])")
         self.parser.add_argument("--model.val_crop_size", type=int, nargs=3, default=[512, 512, 512], help="Size of validation crops ([int, int, int])")
         self.parser.add_argument("--model.use_fa4", default=False, action="store_true", help="Whether to use FlashAttention-4 in model implementation.")
+        self.parser.add_argument("--model.rope_type", type=str, default="vanilla", help="3D RoPE type", choices=["vanilla", "superposition"])
 
         # data configs
         self.parser.add_argument("--data.dataset_name", type=str, default="cellmap-2d", help="Name of the dataset to load.")

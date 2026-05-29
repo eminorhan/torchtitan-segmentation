@@ -22,7 +22,7 @@ def get_base_transforms(is_3d: bool):
     return v2.Compose([to_float, v2.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 
 def resize_array(arr: np.ndarray, target_shape: Tuple, order: int) -> np.ndarray:
-    if arr.shape == target_shape: return arr
+    if arr.shape == target_shape: return arr.copy()
     return scipy.ndimage.zoom(arr, [t / s for t, s in zip(target_shape, arr.shape)], order=order, prefilter=False)
 
 def augment_3d(raw: np.ndarray, rng: np.random.Generator, label: np.ndarray = None):
@@ -224,7 +224,7 @@ def _get_cellmap_splits(dataset, rank, world_size, num_workers):
     val_crop_names = set(unique_crops[:64])
 
     if rank == 0:
-        print(f"Validation crops: {val_crop_names}")
+        print(f"Sorted validation crops: {sorted(val_crop_names)}")
     
     if world_size > 1 and rank > 0: dist.barrier()
 
@@ -318,7 +318,7 @@ def build_data_loader(
         val_dataset = CellMap2DDataset(val_ds, val_crop_size, is_val=True)
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
-        val_loader = DataLoader(val_dataset, batch_size=1, num_workers=0)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=0)
         return train_loader, val_loader
 
     else:
