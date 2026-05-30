@@ -1,5 +1,5 @@
 [job]
-dump_folder = "./outputs/dinov3_vitl16_3D_linear"
+dump_folder = "./outputs/dinov3_vitl16_3D_linear_sp"
 description = "segmentation training"
 
 [profiling]
@@ -28,7 +28,7 @@ augment = true  # whether to use "cheap" data augmentations
 
 [optimizer]
 name = "AdamW"
-lr = 3e-5
+lr = 3e-4
 
 [training]
 batch_size = 1

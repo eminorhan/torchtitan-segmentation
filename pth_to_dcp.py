@@ -29,6 +29,7 @@ if __name__ == "__main__":
         "dinov3_vith16plus_3D_linear":      {"arch": "dinov3_vith16plus_3D", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
         "dinov3_vith16plus_2D_linear":      {"arch": "dinov3_vith16plus",    "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
         "dinov3_vitl16_3D_linear":          {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
+        "dinov3_vitl16_3D_linear_sp":       {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "kwargs": {"pos_embed_rope_type": "superposition"}},
         "dinov3_vitl16_2D_linear":          {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
         "dinov3_vitb16_3D_linear":          {"arch": "dinov3_vitb16_3D",     "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
         "dinov3_vitb16_2D_linear":          {"arch": "dinov3_vitb16",        "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
@@ -44,6 +45,8 @@ if __name__ == "__main__":
 
     for variant_name, config in BACKBONE_CKPT_DICT.items():
         weights_path = BACKBONE_PTH_ROOT / config["ckpt"]
+        kwargs = config.get("kwargs", {})
+        print(f"[{variant_name}] Config: {config}")
         
         bbone = torch.hub.load(
             str(args.dinov3_repo_path), 
@@ -51,7 +54,8 @@ if __name__ == "__main__":
             source="local", 
             weights=str(weights_path), 
             pretrained=True, 
-            use_fa4=True
+            use_fa4=True,
+            **kwargs
         )
         
         model = build_segmentation_decoder(

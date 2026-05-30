@@ -108,9 +108,9 @@ def main(job_config: JobConfig):
     backbone = torch.hub.load(
         job_config.model.dinov3_repo_folder, 
         job_config.model.backbone, 
-        source="local", 
-        use_fa4=job_config.model.use_fa4, 
-        pos_embed_rope_type=job_config.model.rope_type, 
+        source="local",
+        use_fa4=job_config.model.use_fa4,
+        pos_embed_rope_type=job_config.model.rope_type,
         pretrained=False
     )
     model = build_segmentation_decoder(
