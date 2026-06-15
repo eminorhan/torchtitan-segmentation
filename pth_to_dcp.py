@@ -24,20 +24,20 @@ if __name__ == "__main__":
     # You can add a few more dinov3 checkpoints below
     BACKBONE_CKPT_DICT = {
         # lvd-1689m
-        "dinov3_vit7b16_3D_linear":         {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
-        "dinov3_vit7b16_2D_linear":         {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
-        "dinov3_vith16plus_3D_linear":      {"arch": "dinov3_vith16plus_3D", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
-        "dinov3_vith16plus_2D_linear":      {"arch": "dinov3_vith16plus",    "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
+        # "dinov3_vit7b16_3D_linear":         {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
+        # "dinov3_vit7b16_2D_linear":         {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
+        # "dinov3_vith16plus_3D_linear":      {"arch": "dinov3_vith16plus_3D", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
+        # "dinov3_vith16plus_2D_linear":      {"arch": "dinov3_vith16plus",    "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
         "dinov3_vitl16_3D_linear":          {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
-        "dinov3_vitl16_3D_linear_sp":       {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "kwargs": {"pos_embed_rope_type": "superposition"}},
-        "dinov3_vitl16_2D_linear":          {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
-        "dinov3_vitb16_3D_linear":          {"arch": "dinov3_vitb16_3D",     "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
-        "dinov3_vitb16_2D_linear":          {"arch": "dinov3_vitb16",        "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
+        # "dinov3_vitl16_3D_linear_sp":       {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "dinov3_vitl16_2D_linear":          {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
+        # "dinov3_vitb16_3D_linear":          {"arch": "dinov3_vitb16_3D",     "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
+        # "dinov3_vitb16_2D_linear":          {"arch": "dinov3_vitb16",        "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
         # sat-493m
-        "dinov3_vitl16_3D_linear_sat493m":  {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
-        "dinov3_vitl16_2D_linear_sat493m":  {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
-        "dinov3_vit7b16_3D_linear_sat493m": {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
-        "dinov3_vit7b16_2D_linear_sat493m": {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
+        # "dinov3_vitl16_3D_linear_sat493m":  {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
+        # "dinov3_vitl16_2D_linear_sat493m":  {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
+        # "dinov3_vit7b16_3D_linear_sat493m": {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
+        # "dinov3_vit7b16_2D_linear_sat493m": {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
     }
 
     # Set torch_hub dir

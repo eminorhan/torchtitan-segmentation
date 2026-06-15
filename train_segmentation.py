@@ -31,7 +31,7 @@ from torchtitan.evaluation import evaluate_2d, evaluate_3d
 
 # dino imports
 from dinov3.eval.segmentation.models import build_segmentation_decoder
-
+from torch.amp import autocast
 
 def get_train_context(enable_loss_parallel: bool, enable_compiled_autograd: bool):
     @contextlib.contextmanager
@@ -245,9 +245,10 @@ def main(job_config: JobConfig):
                 # resample predictions if necessary
                 preds = resample_preds(preds, targets, job_config.model.crop_size)
                 # logger.info(f"train inputs/targets/preds shape: {inputs.shape}/{targets.shape}/{preds.shape}")
-                loss = loss_fn(preds, targets)
+                loss = loss_fn(preds, targets) 
                 # need to free before bwd to avoid peaking memory
                 del preds
+
                 loss.backward()
             
             # clip gradients

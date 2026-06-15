@@ -1,5 +1,5 @@
 [job]
-dump_folder = "./outputs/dinov3_vitl16_3D_linear"
+dump_folder = "./outputs/test"
 description = "segmentation training"
 
 [profiling]
@@ -8,7 +8,7 @@ save_traces_folder = "profile_trace"
 profile_freq = 10
 
 [metrics]
-log_freq = 1000
+log_freq = 100
 eval_freq = 10000
 
 [model]
@@ -16,8 +16,8 @@ backbone = "dinov3_vitl16_3D"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3
 head = "linear"  # ["linear", "m2f"]
 dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
 num_classes = 64 
-crop_size = [400, 400, 400]
-val_crop_size = [400, 400, 400]
+crop_size = [432, 432, 432]
+val_crop_size = [512, 512, 512]
 use_fa4 = false  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision
 # rope_type = "superposition"  # ["vanilla", "superposition"]
 
@@ -28,7 +28,7 @@ augment = true  # whether to use "cheap" data augmentations
 
 [optimizer]
 name = "AdamW"
-lr = 3e-4
+lr = 3e-5
 
 [training]
 batch_size = 1
@@ -48,7 +48,7 @@ pipeline_parallel_degree = 1
 enable_checkpoint = true
 folder = "checkpoint"
 interval_type = "steps"
-interval = 1000
+interval = 10000
 model_weights_only = false
 export_dtype = "bfloat16"
 async_mode = "disabled"  # ["disabled", "async", "async_with_pinned_mem"]

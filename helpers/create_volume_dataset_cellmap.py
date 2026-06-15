@@ -155,10 +155,10 @@ def generate_3d_volumes(root_dir):
                 
                 label_vol = np.array(label_array)
 
-                if label_vol.shape != raw_crop_3d.shape:
-                    print(f"Reshaping label volume for {crop_name} from {label_vol.shape} to {raw_crop_3d.shape} ...")
-                    zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]
-                    label_vol = scipy.ndimage.zoom(label_vol, zoom_factor, order=0, prefilter=False)
+                if raw_crop_3d.shape != label_vol.shape:
+                    print(f"Reshaping raw volume for {crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
+                    zoom_factor = [t / s for t, s in zip(label_vol.shape, raw_crop_3d.shape)]  # Target / source
+                    raw_crop_3d = scipy.ndimage.zoom(raw_crop_3d, zoom_factor, order=1, prefilter=False)
                 
                 # 3. Normalize 3D volume
                 vol_3d_uint8 = normalize_to_uint8(raw_crop_3d)

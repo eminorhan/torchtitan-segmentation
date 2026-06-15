@@ -2,6 +2,7 @@ import os
 import zarr
 import numpy as np
 import scipy.ndimage
+import argparse
 from glob import glob
 from PIL import Image
 from datasets import Dataset, Features, Image as HFImage, Value
@@ -152,10 +153,10 @@ def generate_2d_slices(root_dir):
                 
                 label_vol = np.array(label_array)
                 
-                if label_vol.shape != raw_crop_3d.shape:
-                    print(f"Reshaping label volume...")
-                    zoom_factor = [t / s for t, s in zip(raw_crop_3d.shape, label_vol.shape)]
-                    label_vol = scipy.ndimage.zoom(label_vol, zoom_factor, order=0, prefilter=False)
+                if raw_crop_3d.shape != label_vol.shape:
+                    print(f"Reshaping raw volume for {crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
+                    zoom_factor = [t / s for t, s in zip(label_vol.shape, raw_crop_3d.shape)]  # Target / source
+                    raw_crop_3d = scipy.ndimage.zoom(raw_crop_3d, zoom_factor, order=1, prefilter=False)
                 
                 full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
                 # print(f"full crop name: {full_crop_name}")
@@ -190,8 +191,11 @@ def generate_2d_slices(root_dir):
                         }
 
 def main():
-    root_directory = "/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data"
-    repo_id = "eminorhan/cellmap-2d"
+    parser = argparse.ArgumentParser(description="Create 2D slice dataset for CellMap.")
+    parser.add_argument("--root_directory", type=str, default="/lustre/blizzard/stf218/scratch/emin/cellmap-segmentation-challenge/data", help="Root directory for zarr volumes")
+    parser.add_argument("--repo_id", type=str, default="eminorhan/cellmap-2d", help="Local path to save dataset")
+
+    args = parser.parse_args()
 
     # Define the schema explicitly for Hugging Face
     features = Features({
@@ -205,7 +209,11 @@ def main():
     print("Initializing dataset generation. This may take a while depending on data size...")
     
     # Create the dataset using the generator
-    dataset = Dataset.from_generator(generate_2d_slices, gen_kwargs={"root_dir": root_directory}, features=features)
+    dataset = Dataset.from_generator(
+        generate_2d_slices, 
+        gen_kwargs={"root_dir": args.root_directory}, 
+        features=features
+    )
     print(f"Dataset generated with {len(dataset)} slices.")
     
     # Shuffle the dataset to evenly distribute large/small images across shards
@@ -213,7 +221,7 @@ def main():
     print("Dataset shuffled!")
 
     # Push the dataset directly to Hugging Face with shard size limit
-    dataset.push_to_hub(repo_id, max_shard_size="1GB")
+    dataset.push_to_hub(args.repo_id, max_shard_size="2GB")
     print("Dataset uploaded to HF Hub!")
 
 if __name__ == "__main__":

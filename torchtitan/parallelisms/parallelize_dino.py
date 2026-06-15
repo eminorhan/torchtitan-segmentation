@@ -13,7 +13,7 @@ from collections import defaultdict
 import torch
 import torch.nn as nn
 from torch.distributed import DeviceMesh
-from torch.distributed._composable.fsdp import fully_shard, MixedPrecisionPolicy
+from torch.distributed._composable.fsdp import fully_shard, MixedPrecisionPolicy, CPUOffloadPolicy
 from torch.distributed._composable.replicate import replicate
 from torch.distributed._tensor import Replicate, Shard, distribute_tensor
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import checkpoint_wrapper as ptd_checkpoint_wrapper
@@ -28,6 +28,7 @@ from torch.distributed.tensor.parallel import (
 from torchtitan.config_manager import JobConfig, TORCH_DTYPE_MAP
 from torchtitan.logging import logger
 from torchtitan.parallelisms.parallel_dims import ParallelDims
+from torch.distributed.tensor import DTensor
 
 
 def parallelize_dino(
@@ -58,8 +59,6 @@ def parallelize_dino(
 
     # turn on per-TransformerBlock compile after AC wrapping and before FSDP
     if job_config.training.compile:
-        if job_config.model.norm_type == "fused_rmsnorm":
-            raise NotImplementedError("fused_rmsnorm is not compatible with torch.compile yet. Please use rmsnorm or layernorm.")
         apply_compile(model)
 
     if parallel_dims.dp_enabled:
@@ -94,126 +93,25 @@ def parallelize_dino(
 
 def apply_tp(
     model: nn.Module,
-    tp_mesh: DeviceMesh,
+    tp_mesh: "DeviceMesh",
     loss_parallel: bool,
     enable_float8: bool,
     enable_async_tp: bool,
 ):
     """
-    Apply tensor parallelism (sharding the hidden/channel dimension) to the FeatureDecoder ViT model.
+    Apply Tensor Parallelism to the MLP blocks of the FeatureDecoder ViT model.
     """
-    # 1. Manually parallelize the Conv3d patch embedding
-    # We shard the weight/bias on the out_channels dim (dim 0)
-    try:
-        conv_layer = model.segmentation_model[0].feature_model.patch_embed.proj
-        
-        weight_sharding = [Shard(0)]
-        bias_sharding = [Shard(0)]
+    feature_model = model.segmentation_model[0].feature_model
 
-        conv_layer.weight = nn.Parameter(
-            distribute_tensor(conv_layer.weight, tp_mesh, weight_sharding)
-        )
-        if conv_layer.bias is not None:
-            conv_layer.bias = nn.Parameter(
-                distribute_tensor(conv_layer.bias, tp_mesh, bias_sharding)
-            )
-        # The output of this layer is now sharded on the channel dim (B, C/TP, D, H, W)
-        # which becomes (B, S, C/TP) after flattening.
-    except AttributeError as e:
-        logger.error(f"Failed to parallelize patch_embed.proj: {e}")
-        raise
-
-    # 2. Parallelize the transformer blocks
-    if enable_float8:
-        from torchao.float8.float8_tensor_parallel import (
-            Float8ColwiseParallel,
-            Float8RowwiseParallel,
-            PrepareFloat8ModuleInput,
-        )
-        rowwise_parallel, colwise_parallel, prepare_module_input = (
-            Float8RowwiseParallel,
-            Float8ColwiseParallel,
-            PrepareFloat8ModuleInput,
-        )
-    else:
-        rowwise_parallel, colwise_parallel, prepare_module_input = (
-            RowwiseParallel,
-            ColwiseParallel,
-            PrepareModuleInput,
-        )
-
-    # Our data layout is (B, S, C). We shard on dim 2.
-    HIDDEN_DIM_SHARD = 2
-
-    for transformer_block in model.segmentation_model[0].feature_model.blocks:
-        # This plan implements standard Megatron-style TP
-        layer_plan = {
-            "norm1": prepare_module_input(
-                input_layouts=([Shard(HIDDEN_DIM_SHARD)],),
-                desired_input_layouts=([Replicate()],),
-            ),
-            "attn.qkv": colwise_parallel(), # Out: [Shard(2)]
-            "attn.proj": rowwise_parallel(
-                output_layouts=[Shard(HIDDEN_DIM_SHARD)] # Out: [Shard(2)]
-            ),
-            
-            "norm2": prepare_module_input(
-                input_layouts=([Shard(HIDDEN_DIM_SHARD)],),
-                desired_input_layouts=([Replicate()],),
-            ),
-            "mlp.w1": colwise_parallel(), # Out: [Shard(2)]
-            "mlp.w2": colwise_parallel(), # Out: [Shard(2)]
-            "mlp.w3": rowwise_parallel(
-                output_layouts=[Shard(HIDDEN_DIM_SHARD)] # Out: [Shard(2)]
-            ),
+    # 1. Parallelize individual SelfAttentionBlocks
+    for block in feature_model.blocks:
+        layer_tp_plan = {
+            "mlp.fc1": ColwiseParallel(),
+            "mlp.fc2": RowwiseParallel(),
         }
+        parallelize_module(block, tp_mesh, layer_tp_plan)
 
-        parallelize_module(
-            module=transformer_block,
-            device_mesh=tp_mesh,
-            parallelize_plan=layer_plan,
-        )
-
-    # 3. Parallelize the final LayerNorm
-    # Input is Shard(2) from blocks, output needs to be Replicate for the final Conv3d
-    final_norm_plan = {
-        "": prepare_module_input(
-            input_layouts=([Shard(HIDDEN_DIM_SHARD)],),
-            desired_input_layouts=([Replicate()],),
-        )
-    }
-    parallelize_module(model.segmentation_model[0].feature_model.norm, tp_mesh, final_norm_plan)
-
-    # 4. Manually parallelize the final Conv3d
-    # Input is now Replicated from the final norm.
-    # We shard the weight/bias on the out_channels dim (dim 0).
-    try:
-        final_conv = model.segmentation_model[1].conv
-        
-        weight_sharding = [Shard(0)]
-        bias_sharding = [Shard(0)]
-
-        final_conv.weight = nn.Parameter(distribute_tensor(final_conv.weight, tp_mesh, weight_sharding))
-        if final_conv.bias is not None:
-            final_conv.bias = nn.Parameter(distribute_tensor(final_conv.bias, tp_mesh, bias_sharding))
-        
-        # This manual sharding results in a channel-sharded output (Shard(1)).
-        # This is equivalent to `loss_parallel=True`.
-        if not loss_parallel:
-            logger.warning("`loss_parallel=False` is not supported for the final manually sharded Conv3d. The output will remain sharded.")
-            
-    except AttributeError as e:
-        logger.error(f"Failed to parallelize segmentation_model.1.conv: {e}")
-        raise
-
-    if enable_async_tp:
-        from torch.distributed._symmetric_memory import enable_symm_mem_for_group
-
-        torch._inductor.config._micro_pipeline_tp = True
-        enable_symm_mem_for_group(tp_mesh.get_group().group_name)
-
-    logger.info(f"Applied {'Float8 ' if enable_float8 else ''}{'Async ' if enable_async_tp else ''} Channel-Sharding Tensor Parallelism to the model")
-
+    logger.info("Applied Tensor Parallelism to the model")
 
 # for selective op activation checkpointing
 _save_list = {
@@ -303,7 +201,11 @@ def apply_fsdp(
     Apply data parallelism to the model. FSDP2 is used here.
     """
     mp_policy = MixedPrecisionPolicy(param_dtype=param_dtype, reduce_dtype=reduce_dtype)
-    fsdp_config = {"mesh": dp_mesh, "mp_policy": mp_policy}
+
+    fsdp_config = {
+        "mesh": dp_mesh, 
+        "mp_policy": mp_policy
+    }
 
     for transformer_block in model.segmentation_model[0].feature_model.blocks:  # TODO: is this correct?
         fully_shard(transformer_block, **fsdp_config, reshard_after_forward=False)
@@ -323,6 +225,6 @@ def apply_ddp(
         else:
             torch._dynamo.config.optimize_ddp = "ddp_optimizer"
 
-    replicate(model, device_mesh=dp_mesh, bucket_cap_mb=100)
+    replicate(model, device_mesh=dp_mesh, bucket_cap_mb=2048)
 
     logger.info("Applied DDP to the model")
