@@ -31,7 +31,6 @@ from torchtitan.evaluation import evaluate_2d, evaluate_3d
 
 # dino imports
 from dinov3.eval.segmentation.models import build_segmentation_decoder
-from torch.amp import autocast
 
 def get_train_context(enable_loss_parallel: bool, enable_compiled_autograd: bool):
     @contextlib.contextmanager
@@ -99,12 +98,13 @@ def main(job_config: JobConfig):
         job_config.training.batch_size,
         tuple(job_config.model.crop_size),
         tuple(job_config.model.val_crop_size),
+        job_config.data.num_vals,
         dp_rank,
         dp_degree,
         job_config.data.augment
     )
 
-    # build model skeleton (TODO: maybe try 'meta' init here). NOTE: we load the pretrained weights during ckpt.load() below
+    # build model skeleton (NOTE: we load the pretrained weights during ckpt.load() below)
     backbone = torch.hub.load(
         job_config.model.dinov3_repo_folder, 
         job_config.model.backbone, 
@@ -114,7 +114,8 @@ def main(job_config: JobConfig):
         pretrained=False
     )
     model = build_segmentation_decoder(
-        backbone, 
+        backbone,
+        backbone_out_layers=job_config.model.backbone_out_layers,
         decoder_type=job_config.model.head, 
         num_classes=job_config.model.num_classes
     )

@@ -82,8 +82,9 @@ class JobConfig:
         self.parser.add_argument("--model.mask_ratio", type=float, default=0.95, help="Mask ratio")
         self.parser.add_argument("--model.backbone", type=str, default="dinov3_vit7b16", help="DINOv3 backbone", choices=["dinov3_vit7b16", "dinov3_vit7b_3D16", "dinov3_vith16plus", "dinov3_vitl16", "dinov3_vitb16", "dinov3_vits16plus", "dinov3_vits16"])
         self.parser.add_argument("--model.head", type=str, default="linear", help="DINOv3 head", choices=["linear", "m2f"])
+        self.parser.add_argument("--model.backbone_out_layers", type=str, default="four_even_intervals", help="Backbone layers to be used as output", choices=["last", "four_last", "four_even_intervals"])
         self.parser.add_argument("--model.dinov3_repo_folder", type=str, default="/lustre/blizzard/stf218/scratch/emin/dinov3", help="Local path to DINOv3 repo (to be used for model definitions)")
-        self.parser.add_argument("--model.num_classes", type=int, default=48, help="Number of classes in output head")
+        self.parser.add_argument("--model.num_classes", type=int, default=64, help="Number of classes in output head")
         self.parser.add_argument("--model.crop_size", type=int, nargs='+', default=[512], help="Size of crops (can be [int, int] or [int, int, int])")
         self.parser.add_argument("--model.val_crop_size", type=int, nargs=3, default=[512, 512, 512], help="Size of validation crops ([int, int, int])")
         self.parser.add_argument("--model.use_fa4", default=False, action="store_true", help="Whether to use FlashAttention-4 in model implementation.")
@@ -93,10 +94,11 @@ class JobConfig:
         self.parser.add_argument("--data.dataset_name", type=str, default="cellmap-2d", help="Name of the dataset to load.")
         self.parser.add_argument("--data.dataset_path", type=str, default="eminorhan/cellmap-2d", help="Root directory for the dataset")
         self.parser.add_argument("--data.augment", default=False, action="store_true", help="Whether to use data augmentation (default: False).")
+        self.parser.add_argument("--data.num_vals", type=int, default=64, help="Number of validation samples (only relevant for CellMap)")
 
         # optimizer configs
         self.parser.add_argument("--optimizer.name", type=str, default="AdamW", help="Optimizer to use")
-        self.parser.add_argument("--optimizer.lr", type=float, default=8e-4, help="Learning rate to use")
+        self.parser.add_argument("--optimizer.lr", type=float, default=3e-4, help="Learning rate to use")
         self.parser.add_argument("--optimizer.fused", default=True, action="store_true", help="Whether the fused implementation (CUDA only) is used.")
 
         # training configs

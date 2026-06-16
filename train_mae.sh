@@ -21,7 +21,6 @@ export FI_PROVIDER=cxi
 export LOGLEVEL=INFO
 export NCCL_SOCKET_IFNAME=hsn0,hsn1,hsn2,hsn3
 export GLOO_SOCKET_IFNAME=hsn0,hsn1,hsn2,hsn3
-export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 export HF_HOME="/lustre/blizzard/stf218/scratch/emin/huggingface"
 export HF_DATASETS_CACHE="/lustre/blizzard/stf218/scratch/emin/huggingface"
 export TRITON_CACHE_DIR="/lustre/blizzard/stf218/scratch/emin/triton"
@@ -34,7 +33,7 @@ export GPUS_PER_NODE=4
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 export MASTER_PORT=3442
 
-CONFIG_FILE=${CONFIG_FILE:-"./train_configs/demo_mae.toml"}
+CONFIG_FILE=${CONFIG_FILE:-"./configs/demo_mae.toml"}
 
 srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_mae.py --job.config_file ${CONFIG_FILE}
 

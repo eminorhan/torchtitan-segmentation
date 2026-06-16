@@ -148,19 +148,20 @@ def generate_2d_slices(root_dir):
                 slices = [slice(max(0, s), min(d, e)) for s, e, d in zip(start_raw, end_raw, raw_array_full.shape)]
                 raw_crop_3d = np.array(raw_array_full[tuple(slices)]) # Load into memory at native size
                 
+                full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
+                # print(f"full crop name: {full_crop_name}")
+
                 if raw_crop_3d.size == 0:
+                    print(f"Skipping crop {full_crop_name} because loaded raw volume is empty.")
                     continue
                 
                 label_vol = np.array(label_array)
                 
                 if raw_crop_3d.shape != label_vol.shape:
-                    print(f"Reshaping raw volume for {crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
+                    print(f"Reshaping raw volume for {full_crop_name} from {raw_crop_3d.shape} to {label_vol.shape} ...")
                     zoom_factor = [t / s for t, s in zip(label_vol.shape, raw_crop_3d.shape)]  # Target / source
                     raw_crop_3d = scipy.ndimage.zoom(raw_crop_3d, zoom_factor, order=1, prefilter=False)
-                
-                full_crop_name = f"{dataset_name}/{recon_name}/{crop_name}"
-                # print(f"full crop name: {full_crop_name}")
-                
+                                
                 # 3. Yield 2D slices along Z, Y, and X
                 for axis in [0, 1, 2]:
                     num_slices = raw_crop_3d.shape[axis]
