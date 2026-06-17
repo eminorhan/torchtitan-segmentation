@@ -44,7 +44,6 @@ def get_train_context(enable_loss_parallel: bool, enable_compiled_autograd: bool
 
     return context
 
-
 # Enable debug tracing on failure: https://pytorch.org/docs/stable/elastic/errors.html
 @record
 def main(job_config: JobConfig):
@@ -59,8 +58,8 @@ def main(job_config: JobConfig):
     # take control of garbage collection to avoid stragglers
     gc_handler = utils.GarbageCollection(gc_freq=job_config.training.gc_freq)
 
-    # set determinism, use seed == None to skip deterministic training
-    utils.set_determinism(job_config.training.seed)
+    # # set determinism, use seed == None to skip deterministic training
+    # utils.set_determinism(None)
 
     # init distributed
     world_size = int(os.environ['WORLD_SIZE'])

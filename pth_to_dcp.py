@@ -23,16 +23,76 @@ if __name__ == "__main__":
 
     # You can add a few more dinov3 checkpoints below
     BACKBONE_CKPT_DICT = {
-        # lvd-1689m
+        # 2d
+        "2d_l_last_scratch_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+
+        "2d_l_last_lvd_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_sat_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_scratch_3em5_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+
+        "2d_l_last_lvd_3em5_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_sat_3em5_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_scratch_3em4_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em4_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+
+        "2d_l_last_lvd_3em4_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em4_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_sat_3em4_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em4_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_scratch_3em5_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+        "2d_l_last_scratch_3em5_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": False},
+
+        "2d_l_last_lvd_3em5_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_lvd_3em5_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        "2d_l_last_sat_3em5_256_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_256_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_256_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+        "2d_l_last_sat_3em5_256_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        # 3d
         # "dinov3_vit7b16_3D_linear":         {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
         # "dinov3_vit7b16_2D_linear":         {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
         # "dinov3_vith16plus_3D_linear":      {"arch": "dinov3_vith16plus_3D", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
         # "dinov3_vith16plus_2D_linear":      {"arch": "dinov3_vith16plus",    "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
-        "dinov3_vitl16_3D_linear":          {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
+        # "dinov3_vitl16_3D_linear":          {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
         # "dinov3_vitl16_3D_linear_sp":       {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "kwargs": {"pos_embed_rope_type": "superposition"}},
         # "dinov3_vitl16_2D_linear":          {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
         # "dinov3_vitb16_3D_linear":          {"arch": "dinov3_vitb16_3D",     "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
-        # "dinov3_vitb16_2D_linear":          {"arch": "dinov3_vitb16",        "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
         # sat-493m
         # "dinov3_vitl16_3D_linear_sat493m":  {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
         # "dinov3_vitl16_2D_linear_sat493m":  {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
@@ -53,13 +113,14 @@ if __name__ == "__main__":
             config["arch"], 
             source="local", 
             weights=str(weights_path), 
-            pretrained=True, 
+            pretrained=config["pretrained"], 
             use_fa4=True,
             **kwargs
         )
         
         model = build_segmentation_decoder(
-            bbone, 
+            bbone,
+            backbone_out_layers=config["backbone_out_layers"],
             decoder_type=args.decoder_type, 
             num_classes=args.num_classes
         )

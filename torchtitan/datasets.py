@@ -252,7 +252,7 @@ def build_data_loader(
     batch_size: int,
     crop_size: Union[Tuple, int], 
     val_crop_size: Union[Tuple, int] = None,
-    num_vals: int = 64,
+    num_vals: int = 32,
     seed: int = 1,
     shuffle_seed: int = 42,
     rank: int = 0,

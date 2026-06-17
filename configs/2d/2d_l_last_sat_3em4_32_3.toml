@@ -1,0 +1,63 @@
+[job]
+dump_folder = "./outputs/2d_l_last_sat_3em4_32_3"
+description = "segmentation training"
+
+[profiling]
+enable_profiling = false
+save_traces_folder = "profile_trace"
+profile_freq = 10
+
+[metrics]
+log_freq = 1000
+eval_freq = 1000
+
+[model]
+backbone = "dinov3_vitl16"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3_vitl16"] + 3D versions
+head = "linear"  # ["linear", "m2f"]
+dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
+num_classes = 64 
+crop_size = [512, 512]
+val_crop_size = [512, 512, 512]
+use_fa4 = true  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision 
+backbone_out_layers = "last"
+
+[data]
+dataset_name = "cellmap-2d"
+dataset_path = "eminorhan/cellmap-2d"
+augment = true  # whether to use "cheap" data augmentations
+num_vals = 32  # number of validation samples
+
+[optimizer]
+name = "AdamW"
+lr = 3e-4
+
+[training]
+batch_size = 16
+warmup_steps = 1000  # lr scheduler warm up
+max_norm = 1.0  # grad norm clipping
+steps = 10000  # number of training steps
+data_parallel_replicate_degree = 1
+data_parallel_shard_degree = -1
+tensor_parallel_degree = 1
+compile = false
+seed = 3
+shuffle_seed = 42
+
+[experimental]
+pipeline_parallel_degree = 1
+
+[checkpoint]
+enable_checkpoint = true
+folder = "checkpoint"
+interval_type = "steps"
+interval = 1000
+model_weights_only = false
+export_dtype = "bfloat16"
+async_mode = "disabled"  # ["disabled", "async", "async_with_pinned_mem"]
+
+[activation_checkpoint]
+mode = 'full'  # ['none', 'selective', 'full']
+selective_ac_option = 'op'  # 'int' = ac every positive int layer or 'op', ac based on ops policy
+
+[float8]
+enable_float8_linear = false
