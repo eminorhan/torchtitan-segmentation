@@ -215,11 +215,11 @@ class OpenOrganelle3DStreamingDataset(IterableDataset):
 # 3. DETERMINISTIC SPLIT LOGIC (Only used for CellMap)
 # =========================================================
 
-def _get_cellmap_splits(dataset, num_vals, rank, world_size, num_workers):
+def _get_cellmap_splits(dataset, num_vals, shuffle_seed, rank, world_size, num_workers):
     """Holds out exactly 64 volumes consistently across ranks."""
     unique_crops = sorted(list(set(re.sub(r'_part\d+$', '', n) for n in dataset['crop_name'])))
     
-    rng = np.random.default_rng(42)  # use a hard-coded seed
+    rng = np.random.default_rng(shuffle_seed)
     rng.shuffle(unique_crops)
     val_crop_names = set(unique_crops[:num_vals])
 
@@ -253,6 +253,8 @@ def build_data_loader(
     crop_size: Union[Tuple, int], 
     val_crop_size: Union[Tuple, int] = None,
     num_vals: int = 64,
+    seed: int = 1,
+    shuffle_seed: int = 42,
     rank: int = 0,
     world_size: int = 1,
     augment: bool = False,
@@ -270,7 +272,7 @@ def build_data_loader(
         if not part_dirs: raise FileNotFoundError(f"No part_X folders found in {dataset_path}")
         
         rank_assigned_parts = part_dirs[rank::world_size]
-        dataset = OpenOrganelle3DStreamingDataset(rank_assigned_parts, crop_size, augment, seed=42+rank)
+        dataset = OpenOrganelle3DStreamingDataset(rank_assigned_parts, crop_size, augment, seed=seed+rank)
         
         train_loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
         return train_loader, None
@@ -280,7 +282,7 @@ def build_data_loader(
     # ---------------------------------------------------------
     elif dataset_name == 'openorganelle-2d':
         dataset = load_dataset(dataset_path, split="train")
-        train_dataset = OpenOrganelle2DDataset(dataset, crop_size, augment, seed=42+rank)
+        train_dataset = OpenOrganelle2DDataset(dataset, crop_size, augment, seed=seed+rank)
         
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
         return train_loader, None
@@ -290,12 +292,12 @@ def build_data_loader(
     # ---------------------------------------------------------
     elif dataset_name == 'cellmap-3d':
         dataset = load_dataset(dataset_path, split="train")
-        train_ds, val_ds = _get_cellmap_splits(dataset, num_vals, rank, world_size, num_workers)
+        train_ds, val_ds = _get_cellmap_splits(dataset, num_vals, shuffle_seed, rank, world_size, num_workers)
         
         if world_size > 1:
             val_ds = val_ds.shard(num_shards=world_size, index=rank)
 
-        train_dataset = CellMap3DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=42+rank)
+        train_dataset = CellMap3DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=seed+rank)
         val_dataset = CellMap3DDataset(val_ds, val_crop_size, is_val=True)
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)
@@ -307,15 +309,15 @@ def build_data_loader(
     # ---------------------------------------------------------
     elif dataset_name == 'cellmap-2d':
         dataset = load_dataset(dataset_path, split="train")
-        train_ds, _ = _get_cellmap_splits(dataset, num_vals, rank, world_size, num_workers)
+        train_ds, _ = _get_cellmap_splits(dataset, num_vals, shuffle_seed, rank, world_size, num_workers)
         
         dataset_3d = load_dataset(dataset_path.replace("-2d", "-3d"), split="train")
-        _, val_ds = _get_cellmap_splits(dataset_3d, num_vals, rank, world_size, num_workers)
+        _, val_ds = _get_cellmap_splits(dataset_3d, num_vals, shuffle_seed, rank, world_size, num_workers)
 
         if world_size > 1:
             val_ds = val_ds.shard(num_shards=world_size, index=rank)
 
-        train_dataset = CellMap2DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=42+rank)
+        train_dataset = CellMap2DDataset(train_ds, crop_size, is_val=False, augment=augment, seed=seed+rank)
         val_dataset = CellMap2DDataset(val_ds, val_crop_size, is_val=True)
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=0)

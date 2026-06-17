@@ -99,6 +99,8 @@ def main(job_config: JobConfig):
         tuple(job_config.model.crop_size),
         tuple(job_config.model.val_crop_size),
         job_config.data.num_vals,
+        job_config.training.seed,
+        job_config.training.shuffle_seed,
         dp_rank,
         dp_degree,
         job_config.data.augment
