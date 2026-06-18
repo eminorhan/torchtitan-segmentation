@@ -25,7 +25,7 @@ backbone_out_layers = "last"
 dataset_name = "cellmap-2d"
 dataset_path = "eminorhan/cellmap-2d"
 augment = true  # whether to use "cheap" data augmentations
-num_vals = 256  # number of validation samples
+num_vals = 223  # number of validation samples
 
 [optimizer]
 name = "AdamW"
