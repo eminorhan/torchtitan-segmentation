@@ -304,7 +304,7 @@ def evaluate_3d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
             gt_vol = val_targets[b] # (D, H, W)
 
             # Retrieve the raw inputs
-            raw_vol = val_inputs[b, 0, :, :, :].detach().cpu()  # (D, H, W) this need not be on GPU
+            # raw_vol = val_inputs[b, 0, :, :, :].detach().cpu()  # (D, H, W) this need not be on GPU
 
             # print(f"val_preds/val_preds/val_targets/raw_vol/final_seg/gt_vol: {val_inputs.shape}/{val_preds.shape}/{val_targets.shape}/{raw_vol.shape}/{final_seg.shape}/{gt_vol.shape}")
 
@@ -312,17 +312,17 @@ def evaluate_3d(model, val_loader, job_config, loss_fn, resample_fn, dp_mesh):
             batch_conf_matrix = compute_confusion_matrix(final_seg, gt_vol, job_config.model.num_classes)
             conf_matrix_all += batch_conf_matrix
 
-            # sample id to uniquely id crops
-            sample_id = f"rank{rank}_batch{num_val_samples}_sample{b}"
+            # # sample id to uniquely id crops
+            # sample_id = f"rank{rank}_batch{num_val_samples}_sample{b}"
 
-            # Visualize results
-            visualize_slices(
-                raw_vol,
-                final_seg,
-                gt_vol,
-                job_config.model.num_classes,
-                visuals_path / f"{job_config.model.backbone}_val_sample_{sample_id}.gif"
-            )
+            # # Visualize results
+            # visualize_slices(
+            #     raw_vol,
+            #     final_seg,
+            #     gt_vol,
+            #     job_config.model.num_classes,
+            #     visuals_path / f"{job_config.model.backbone}_val_sample_{sample_id}.gif"
+            # )
 
     # Reduce val loss
     local_stats = torch.tensor([total_val_loss, num_val_samples], device='cuda', dtype=torch.float32)

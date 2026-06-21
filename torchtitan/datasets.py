@@ -216,7 +216,7 @@ class OpenOrganelle3DStreamingDataset(IterableDataset):
 # =========================================================
 
 def _get_cellmap_splits(dataset, num_vals, shuffle_seed, rank, world_size, num_workers):
-    """Holds out exactly 64 volumes consistently across ranks."""
+    """Holds out num_vals volumes consistently across ranks."""
     unique_crops = sorted(list(set(re.sub(r'_part\d+$', '', n) for n in dataset['crop_name'])))
     
     rng = np.random.default_rng(shuffle_seed)
