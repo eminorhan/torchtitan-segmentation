@@ -1,5 +1,5 @@
-# Set flag for CUDA 12.9 wheels
---extra-index-url https://download.pytorch.org/whl/cu129
+# Set flag for CUDA 13.0 wheels
+--extra-index-url https://download.pytorch.org/whl/cu130
 
 # Required PyTorch packages
 torch
