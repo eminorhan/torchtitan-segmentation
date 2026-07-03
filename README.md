@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 * **[FlashAttention-4]** If you're running this repository on Hopper or Blackwell GPUs, we strongly recommend installing [FlashAttention-4](https://github.com/dao-ailab/flash-attention?tab=readme-ov-file#flashattention-4-cutedsl) for a highly efficient, state-of-the-art self-attention implementation (with the `cu13` extra for optimal performance):
 ```bash
-pip install "flash-attn-4[cu13]"
+pip install --pre "flash-attn-4[cu13]"
 ```
 
 * **[aws-ofi-nccl]** (On Arch only) For a more performant interconnect, install the [`aws-ofi-nccl`](https://github.com/aws/aws-ofi-nccl) plugin, which will enable `nccl` to use `libfabric`. I provide an example bash shell script [here](build_aws_ofi_nccl.sh), demonstrating how to install the `aws-ofi-nccl` plugin (note that this is Arch specific; you would need to modify the script depending on your set-up).
