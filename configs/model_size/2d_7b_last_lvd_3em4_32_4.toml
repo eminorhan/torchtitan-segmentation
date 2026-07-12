@@ -29,7 +29,7 @@ num_vals = 32  # number of validation samples
 
 [optimizer]
 name = "AdamW"
-lr = 3e-4
+lr = 3e-5
 
 [training]
 batch_size = 16

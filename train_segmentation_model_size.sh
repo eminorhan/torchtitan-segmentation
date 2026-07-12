@@ -9,7 +9,7 @@
 #SBATCH --time=6:00:00
 #SBATCH --job-name=train_segmentation_model_size
 #SBATCH --output=train_segmentation_model_size_%A_%a.out
-#SBATCH --array=0-11
+#SBATCH --array=8-11
 
 # activate venv
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate
