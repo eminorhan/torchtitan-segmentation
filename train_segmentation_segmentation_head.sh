@@ -7,9 +7,9 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
 #SBATCH --time=6:00:00
-#SBATCH --job-name=train_segmentation_model_size
-#SBATCH --output=train_segmentation_model_size_%A_%a.out
-#SBATCH --array=0-11
+#SBATCH --job-name=train_segmentation_segmentation_head
+#SBATCH --output=train_segmentation_segmentation_head_%A_%a.out
+#SBATCH --array=0-7
 
 # activate venv
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate
@@ -35,7 +35,7 @@ export MASTER_PORT=3442
 
 # --- CONFIG RESOLUTION ---
 # 1. Create a 0-indexed bash array of all toml files in the directory
-CONFIG_FILES=(./configs/model_size/*.toml)
+CONFIG_FILES=(./configs/segmentation_head/*.toml)
 
 # 2. Select the specific file for this array task
 CONFIG_FILE=${CONFIG_FILES[$SLURM_ARRAY_TASK_ID]}

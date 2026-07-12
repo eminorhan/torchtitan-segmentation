@@ -209,34 +209,32 @@ if __name__ == "__main__":
         # "cm_2d_l_last_lvd_3em4_256_4": {"arch": "dinov3_vitl16", "ckpt": "cm_2d_l_lvd-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
 
         # model size
-        "2d_7b_last_lvd_3em4_32_1": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_7b_last_lvd_3em4_32_2": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_7b_last_lvd_3em4_32_3": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_7b_last_lvd_3em4_32_4": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_7b_last_lvd_3em4_32_1": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_7b_last_lvd_3em4_32_2": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_7b_last_lvd_3em4_32_3": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_7b_last_lvd_3em4_32_4": {"arch": "dinov3_vit7b16", "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth", "backbone_out_layers": "last", "pretrained": True},
 
-        "2d_hplus_last_lvd_3em4_32_1": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_hplus_last_lvd_3em4_32_2": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_hplus_last_lvd_3em4_32_3": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_hplus_last_lvd_3em4_32_4": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_hplus_last_lvd_3em4_32_1": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_hplus_last_lvd_3em4_32_2": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_hplus_last_lvd_3em4_32_3": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_hplus_last_lvd_3em4_32_4": {"arch": "dinov3_vith16plus", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth", "backbone_out_layers": "last", "pretrained": True},
 
-        "2d_b_last_lvd_3em4_32_1": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_b_last_lvd_3em4_32_2": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_b_last_lvd_3em4_32_3": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
-        "2d_b_last_lvd_3em4_32_4": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_b_last_lvd_3em4_32_1": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_b_last_lvd_3em4_32_2": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_b_last_lvd_3em4_32_3": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "2d_b_last_lvd_3em4_32_4": {"arch": "dinov3_vitb16", "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth", "backbone_out_layers": "last", "pretrained": True},
 
-        # "dinov3_vit7b16_3D_linear":         {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
-        # "dinov3_vit7b16_2D_linear":         {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_lvd1689m-a955f4ea.pth"},
-        # "dinov3_vith16plus_3D_linear":      {"arch": "dinov3_vith16plus_3D", "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
-        # "dinov3_vith16plus_2D_linear":      {"arch": "dinov3_vith16plus",    "ckpt": "dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth"},
-        # "dinov3_vitl16_3D_linear":          {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
-        # "dinov3_vitl16_3D_linear_sp":       {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "kwargs": {"pos_embed_rope_type": "superposition"}},
-        # "dinov3_vitl16_2D_linear":          {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth"},
-        # "dinov3_vitb16_3D_linear":          {"arch": "dinov3_vitb16_3D",     "ckpt": "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth"},
-        # sat-493m
-        # "dinov3_vitl16_3D_linear_sat493m":  {"arch": "dinov3_vitl16_3D",     "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
-        # "dinov3_vitl16_2D_linear_sat493m":  {"arch": "dinov3_vitl16",        "ckpt": "dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth"},
-        # "dinov3_vit7b16_3D_linear_sat493m": {"arch": "dinov3_vit7b16_3D",    "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
-        # "dinov3_vit7b16_2D_linear_sat493m": {"arch": "dinov3_vit7b16",       "ckpt": "dinov3_vit7b16_pretrain_sat493m-a6675841.pth"},
+        # segmentation head
+        "2d_l_fourlast_lvd_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_last", "pretrained": True},
+        "2d_l_fourlast_lvd_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_last", "pretrained": True},
+        "2d_l_fourlast_lvd_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_last", "pretrained": True},
+        "2d_l_fourlast_lvd_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_last", "pretrained": True},
+
+        "2d_l_foureven_lvd_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_even_intervals", "pretrained": True},
+        "2d_l_foureven_lvd_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_even_intervals", "pretrained": True},
+        "2d_l_foureven_lvd_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_even_intervals", "pretrained": True},
+        "2d_l_foureven_lvd_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "four_even_intervals", "pretrained": True},
+
     }
 
     # Set torch_hub dir
