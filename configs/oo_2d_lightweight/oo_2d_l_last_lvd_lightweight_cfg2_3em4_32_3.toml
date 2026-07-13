@@ -1,5 +1,5 @@
 [job]
-dump_folder = "./outputs/2d_l_foureven_lvd_3em4_32_1"
+dump_folder = "./outputs/oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_3"
 description = "segmentation training"
 
 [profiling]
@@ -19,7 +19,7 @@ num_classes = 64
 crop_size = [512, 512]
 val_crop_size = [512, 512, 512]
 use_fa4 = true  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision 
-backbone_out_layers = "four_even_intervals"
+backbone_out_layers = "last"
 
 [data]
 dataset_name = "cellmap-2d"
@@ -40,7 +40,7 @@ data_parallel_replicate_degree = 1
 data_parallel_shard_degree = -1
 tensor_parallel_degree = 1
 compile = false
-seed = 1
+seed = 3
 shuffle_seed = 42
 
 [experimental]
