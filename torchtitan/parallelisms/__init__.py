@@ -7,12 +7,10 @@
 
 
 from torchtitan.parallelisms.parallel_dims import ParallelDims
-from torchtitan.parallelisms.parallelize_mae import parallelize_mae
 from torchtitan.parallelisms.parallelize_dino import parallelize_dino
 
 
 __all__ = [
     "parallelize_dino",
-    "parallelize_mae",
     "ParallelDims",
 ]

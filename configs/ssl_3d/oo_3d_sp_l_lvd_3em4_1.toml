@@ -1,0 +1,62 @@
+[job]
+dump_folder = "./outputs/oo_3d_sp_l_lvd_3em4_1"
+description = "SimMIM training"
+
+[profiling]
+enable_profiling = false
+save_traces_folder = "profile_trace"
+profile_freq = 10
+
+[metrics]
+log_freq = 100
+
+[model]
+backbone = "dinov3_vitl16_3D"  # ["dinov3_vit7b16", "dinov3_vith16plus", "dinov3_vitl16", "dinov3_vitb16"] + 3D versions
+head = "linear"  # ["linear", "m2f"]
+dinov3_repo_folder = "/lustre/blizzard/stf218/scratch/emin/dinov3"
+crop_size = [400, 400, 400]
+use_fa4 = false  # use FlashAttention-4? NOTE: FA-4 requires bf16 mixed precision
+backbone_out_layers = "last"
+rope_type = "superposition"  # ["vanilla", "superposition"]
+mask_ratio = 0.6
+
+[data]
+dataset_name = "openorganelle-3d"
+dataset_path = "/lustre/blizzard/stf218/scratch/emin/seg3d/data_oo_3d"
+augment = true  # whether to use "cheap" data augmentations
+
+[optimizer]
+name = "AdamW"
+lr = 3e-4
+
+[training]
+batch_size = 2
+warmup_steps = 300  # lr scheduler warm up
+max_norm = 1.0  # grad norm clipping
+steps = 3000  # number of training steps
+data_parallel_replicate_degree = 1
+data_parallel_shard_degree = -1
+tensor_parallel_degree = 1
+compile = false
+mixed_precision_param = "float32"
+seed = 1
+shuffle_seed = 42
+
+[experimental]
+pipeline_parallel_degree = 1
+
+[checkpoint]
+enable_checkpoint = true
+folder = "checkpoint"
+interval_type = "steps"
+interval = 500
+model_weights_only = false
+export_dtype = "bfloat16"
+async_mode = "disabled"  # ["disabled", "async", "async_with_pinned_mem"]
+
+[activation_checkpoint]
+mode = 'full'  # ['none', 'selective', 'full']
+selective_ac_option = 'op'  # 'int' = ac every positive int layer or 'op', ac based on ops policy
+
+[float8]
+enable_float8_linear = false

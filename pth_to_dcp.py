@@ -241,10 +241,21 @@ if __name__ == "__main__":
         # "oo_2d_l_last_lvd_lightweight_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
         # "oo_2d_l_last_lvd_lightweight_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
 
-        "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
-        "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
-        "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
-        "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_1": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_2": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_3": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+        # "oo_2d_l_last_lvd_lightweight_cfg2_3em4_32_4": {"arch": "dinov3_vitl16", "ckpt": "oo_2d_l_lvd_lightweight_cfg2-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True},
+
+        # cellmap 3d ssl superposition rope
+        # "ssl_cm_3d_sp_l_lvd_3em4_32_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_32_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_32_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_32_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+
+        "ssl_cm_3d_sp_l_lvd_3em4_256_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_256_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_256_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "ssl_cm_3d_sp_l_lvd_3em4_256_1": {"arch": "dinov3_vitl16_3D", "ckpt": "cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
 
     }
 
