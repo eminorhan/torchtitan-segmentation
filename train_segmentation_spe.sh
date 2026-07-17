@@ -7,9 +7,9 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
 #SBATCH --time=6:00:00
-#SBATCH --job-name=train_simmim_ssl_3d
-#SBATCH --output=train_simmim_ssl_3d_%A_%a.out
-#SBATCH --array=1
+#SBATCH --job-name=train_segmentation_spe
+#SBATCH --output=train_segmentation_spe_%A_%a.out
+#SBATCH --array=0-7
 
 # activate venv
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate
@@ -35,7 +35,7 @@ export MASTER_PORT=3442
 
 # --- CONFIG RESOLUTION ---
 # 1. Create a 0-indexed bash array of all toml files in the directory
-CONFIG_FILES=(./configs/ssl_3d/*.toml)
+CONFIG_FILES=(./configs/spe/*.toml)
 
 # 2. Select the specific file for this array task
 CONFIG_FILE=${CONFIG_FILES[$SLURM_ARRAY_TASK_ID]}
@@ -51,6 +51,6 @@ echo "Config contents:"
 cat "$CONFIG_FILE"
 echo "================================================================="
 
-srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_simmim.py --job.config_file ${CONFIG_FILE}
+srun torchrun --nnodes $SLURM_NNODES --nproc_per_node $GPUS_PER_NODE --max_restarts 1 --node_rank $SLURM_NODEID --rdzv_id 101 --rdzv_backend c10d --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" ./train_segmentation.py --job.config_file ${CONFIG_FILE}
 
 echo "Done"

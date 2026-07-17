@@ -9,7 +9,7 @@
 #SBATCH --time=6:00:00
 #SBATCH --job-name=train_ssl_3d_finetune
 #SBATCH --output=train_ssl_3d_finetune_%A_%a.out
-#SBATCH --array=0
+#SBATCH --array=4
 
 # activate venv
 source /lustre/blizzard/stf218/scratch/emin/blizzardvenv/bin/activate

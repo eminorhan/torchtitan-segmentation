@@ -39,6 +39,8 @@ def convert_checkpoint(dcp_dir: str, output_path: str):
         for k in sorted(backbone_state.keys()):
             # Print the key and the shape of the tensor for extra verification
             print(f"{k}: {list(backbone_state[k].shape)}")
+
+            if k == "rope_embed.depth_scale": print(f"{k}: {backbone_state[k]}")
             
         print("-" * 50)
         torch.save(backbone_state, output_path)
@@ -49,8 +51,8 @@ def convert_checkpoint(dcp_dir: str, output_path: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert a distributed SimMIM checkpoint to a single backbone .pth file")
-    parser.add_argument("--dcp_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/torchtitan-mae/outputs/cm_3d_sp_l_lvd_3em4_1/checkpoint/step-3000", help="Path to the distributed checkpoint folder")
-    parser.add_argument("--output", type=str, default="cm_3d_sp_l_lvd_3em4_1-8aa4cbdd.pth", help="Output .pth file path")
+    parser.add_argument("--dcp_dir", type=str, default="/lustre/blizzard/stf218/scratch/emin/torchtitan-mae/outputs/oo_3d_sp_l_lvd_3em4_1_lightweight/checkpoint/step-1500", help="Path to the distributed checkpoint folder")
+    parser.add_argument("--output", type=str, default="oo_3d_sp_l_lvd_3em4_1_lightweight-8aa4cbdd.pth", help="Output .pth file path")
     args = parser.parse_args()
     
     convert_checkpoint(args.dcp_dir, args.output)

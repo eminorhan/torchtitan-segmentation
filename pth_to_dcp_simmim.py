@@ -99,8 +99,9 @@ if __name__ == "__main__":
     # You can add a few more dinov3 checkpoints below
     BACKBONE_CKPT_DICT = {
         # simmim w/ 3d superposition rope
-        "oo_3d_sp_l_lvd_3em4_1": {"arch": "dinov3_vitl16_3D", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
-        "cm_3d_sp_l_lvd_3em4_1": {"arch": "dinov3_vitl16_3D", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        "oo_3d_sp_l_lvd_3em4_1_lightweight": {"arch": "dinov3_vitl16_3D", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "oo_3d_sp_l_lvd_3em4_1": {"arch": "dinov3_vitl16_3D", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
+        # "cm_3d_sp_l_lvd_3em4_1": {"arch": "dinov3_vitl16_3D", "ckpt": "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth", "backbone_out_layers": "last", "pretrained": True, "kwargs": {"pos_embed_rope_type": "superposition"}},
     }
 
     # Set torch_hub dir
