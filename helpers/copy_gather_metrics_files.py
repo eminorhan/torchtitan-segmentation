@@ -1,7 +1,7 @@
 import zipfile
 from pathlib import Path
 
-def collect_experiment_metrics(base_dir="outputs", output_zip="all_experiments.zip"):
+def collect_experiment_metrics(base_dir="outputs", output_zip="all_experiments_3.zip"):
     base_path = Path(base_dir)
     
     # Check if the outputs directory exists
